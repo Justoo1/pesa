@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
@@ -24,7 +24,10 @@ export function AddPastTxnSheet({
 }: {
   open: boolean
   onClose: () => void
-  ym: string // "YYYY-MM"
+  // When omitted, the sheet shows a month picker so the user can add to any
+  // past month (used from the /months index page). When provided, it's locked
+  // to that month (used from /months/[ym]).
+  ym?: string
   buckets: PastTxnBucket[]
   currency: string
 }) {
@@ -36,14 +39,35 @@ export function AddPastTxnSheet({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const [year, month] = ym.split("-").map(Number)
+  // Build the last 12 months (current month last so past months come first
+  // when ym is unset).
+  const now = new Date()
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    const label = d.toLocaleString("en-US", { month: "long", year: "numeric" })
+    return { value: v, label }
+  })
+  const lockedYm = ym
+  const [selectedYm, setSelectedYm] = useState<string>(
+    lockedYm ?? monthOptions[1]?.value ?? monthOptions[0].value,
+  )
+  const activeYm = lockedYm ?? selectedYm
+
+  const [year, month] = activeYm.split("-").map(Number)
   const daysInMonth = new Date(year, month, 0).getDate()
-  const minDate = `${ym}-01`
-  const maxDate = `${ym}-${String(daysInMonth).padStart(2, "0")}`
+  const minDate = `${activeYm}-01`
+  const maxDate = `${activeYm}-${String(daysInMonth).padStart(2, "0")}`
   // Default to the last day of the month — users adding a past entry rarely
   // know the exact day, and end-of-month is the most defensible default for
   // catching up on a forgotten paycheck.
   const [date, setDate] = useState(maxDate)
+
+  // Re-anchor the date to the selected month whenever it changes (so picking
+  // "March" after "April" doesn't leave you with an out-of-range April date).
+  useEffect(() => {
+    setDate(maxDate)
+  }, [maxDate])
 
   const reset = () => {
     setBucketId("")
@@ -52,6 +76,7 @@ export function AddPastTxnSheet({
     setMethod("MoMo")
     setDate(maxDate)
     setError(null)
+    if (!lockedYm) setSelectedYm(monthOptions[1]?.value ?? monthOptions[0].value)
   }
 
   const submit = () => {
@@ -98,7 +123,9 @@ export function AddPastTxnSheet({
         >
           <Icon name="close" size={18} />
         </button>
-        <span style={{ fontWeight: 600 }}>Add to this month</span>
+        <span style={{ fontWeight: 600 }}>
+          {lockedYm ? "Add to this month" : "Add to a past month"}
+        </span>
         <span style={{ width: 44 }} />
       </div>
 
@@ -109,6 +136,24 @@ export function AddPastTxnSheet({
         >
           Log a transfer you <span className="italic">forgot.</span>
         </div>
+
+        {!lockedYm && (
+          <>
+            <Label>Month</Label>
+            <select
+              className="input"
+              value={selectedYm}
+              onChange={(e) => setSelectedYm(e.target.value)}
+              style={{ marginBottom: 14 }}
+            >
+              {monthOptions.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
         <Label>Pot</Label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>

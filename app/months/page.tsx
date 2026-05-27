@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { loadAllMonths } from "@/lib/insights"
 import { fmtMoney } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
+import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
 
 export const dynamic = "force-dynamic"
 
@@ -13,12 +14,17 @@ export default async function MonthsPage() {
   if (!session?.user?.id) redirect("/sign-in")
   const userId = session.user.id
 
-  const [user, months] = await Promise.all([
+  const [user, months, activeBuckets] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { currency: true },
     }),
     loadAllMonths(userId),
+    prisma.bucket.findMany({
+      where: { userId, archivedAt: null },
+      orderBy: { priority: "asc" },
+      select: { id: true, name: true, color: true, icon: true },
+    }),
   ])
   const currency = user.currency
 
@@ -51,7 +57,10 @@ export default async function MonthsPage() {
                 <Icon name="back" size={18} />
               </Link>
               <span style={{ fontWeight: 600 }}>Past months</span>
-              <span style={{ width: 44 }} />
+              <AddPastTxnButton
+                buckets={activeBuckets as Parameters<typeof AddPastTxnButton>[0]["buckets"]}
+                currency={currency}
+              />
             </div>
             <div
               className="scroll"

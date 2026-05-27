@@ -9,7 +9,10 @@ export function AddPastTxnButton({
   buckets,
   currency,
 }: {
-  ym: string
+  // Omit to let the user pick any past month from inside the sheet (used on
+  // the /months index). Provide it to lock the sheet to a specific month
+  // (used inside /months/[ym]).
+  ym?: string
   buckets: PastTxnBucket[]
   currency: string
 }) {

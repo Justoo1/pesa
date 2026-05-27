@@ -37,7 +37,9 @@ function SettingRow({
   onClick?: () => void
   danger?: boolean
 }) {
-  const interactive = !!onClick && !toggle
+  // Toggle rows still need to be clickable — the bug was treating them as
+  // non-interactive, which dropped the onClick on the floor.
+  const interactive = !!onClick
   const Wrapper = interactive ? "button" : "div"
   const wrapperProps = interactive
     ? {
