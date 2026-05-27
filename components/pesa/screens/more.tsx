@@ -5,10 +5,19 @@ import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
 import type { Action, AppState, IconName, UserProfile } from "../types"
+import Link from "next/link"
 import { AddPotSheet } from "./add-pot"
+import { EditPotSheet } from "./edit-pot"
 import { EditProfileSheet } from "./edit-profile"
+import { PaydayPrefsSheet } from "./payday-prefs"
+import { AppLockSheet } from "./app-lock"
+import { AboutSheet } from "./about"
+import { DeleteAccountSheet } from "./delete-account"
 import { signOutAction } from "@/app/actions/auth"
-import { resetMonth } from "@/app/actions/settings"
+import { resetMonth, toggleRoundUps } from "@/app/actions/settings"
+import { reorderBuckets } from "@/app/actions/buckets"
+import { useRef } from "react"
+import type { Bucket } from "../types"
 
 function SettingRow({
   icon,
@@ -106,8 +115,33 @@ function SetupPanel({
   salary: number
 }) {
   const [addOpen, setAddOpen] = useState(false)
+  const [editingBucket, setEditingBucket] = useState<Bucket | null>(null)
+  const dragId = useRef<string | null>(null)
+  const router = useRouter()
+  const [, startReorder] = useTransition()
+
   const totalTarget = state.buckets.reduce((s, b) => s + b.target, 0)
   const remainingTarget = salary - totalTarget
+
+  const onDrop = (overId: string) => {
+    const from = dragId.current
+    dragId.current = null
+    if (!from || from === overId) return
+    const ids = state.buckets.map((b) => b.id)
+    const fromIdx = ids.indexOf(from)
+    const toIdx = ids.indexOf(overId)
+    if (fromIdx < 0 || toIdx < 0) return
+    ids.splice(toIdx, 0, ...ids.splice(fromIdx, 1))
+    startReorder(async () => {
+      try {
+        await reorderBuckets({ bucketIds: ids })
+        router.refresh()
+      } catch {
+        // server will reconcile via next refresh
+      }
+    })
+  }
+
   return (
     <>
       <div style={{ padding: "14px 20px 0" }}>
@@ -163,19 +197,57 @@ function SetupPanel({
             <div
               key={b.id}
               className="row"
+              draggable
+              onDragStart={() => {
+                dragId.current = b.id
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => onDrop(b.id)}
               style={{
                 borderTop: i === 0 ? "1px solid transparent" : "1px solid var(--line)",
               }}
             >
-              <div className={`row-icon ${b.color}`}>
-                <Icon name={b.icon} size={16} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
-                <div className="tiny">
-                  Priority {b.priority} · {b.kind}
+              <span
+                aria-label="Drag to reorder"
+                title="Drag to reorder"
+                style={{
+                  cursor: "grab",
+                  color: "var(--ink-3)",
+                  marginRight: 2,
+                  userSelect: "none",
+                  fontSize: 14,
+                }}
+              >
+                ⋮⋮
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditingBucket(b)}
+                style={{
+                  appearance: "none",
+                  border: 0,
+                  background: "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: "left",
+                  padding: 0,
+                }}
+                aria-label={`Edit ${b.name}`}
+              >
+                <div className={`row-icon ${b.color}`}>
+                  <Icon name={b.icon} size={16} />
                 </div>
-              </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
+                  <div className="tiny">
+                    Priority {b.priority} · {b.kind}
+                  </div>
+                </div>
+              </button>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button
                   className="btn btn-ghost btn-icon"
@@ -212,6 +284,9 @@ function SetupPanel({
             </div>
           ))}
         </div>
+        <div className="tiny" style={{ marginTop: 8, padding: "0 4px" }}>
+          Tip: tap a row to rename, recolor or archive; drag the handle to reorder.
+        </div>
       </div>
 
       <div style={{ padding: "12px 20px 28px" }}>
@@ -224,6 +299,12 @@ function SetupPanel({
         open={addOpen}
         onClose={() => setAddOpen(false)}
         dispatch={dispatch}
+      />
+
+      <EditPotSheet
+        open={!!editingBucket}
+        onClose={() => setEditingBucket(null)}
+        bucket={editingBucket}
       />
     </>
   )
@@ -240,7 +321,12 @@ function SettingsPanel({
 }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
+  const [paydayOpen, setPaydayOpen] = useState(false)
+  const [lockOpen, setLockOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [resetting, startResetting] = useTransition()
+  const [, startToggle] = useTransition()
 
   const openEdit = () => setEditOpen(true)
 
@@ -257,6 +343,17 @@ function SettingsPanel({
         router.refresh()
       } catch (e) {
         window.alert(e instanceof Error ? e.message : "Could not reset.")
+      }
+    })
+  }
+
+  const handleToggleRoundUps = () => {
+    startToggle(async () => {
+      try {
+        await toggleRoundUps(!profile.roundUpsEnabled)
+        router.refresh()
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : "Could not save.")
       }
     })
   }
@@ -297,17 +394,49 @@ function SettingsPanel({
 
       <div style={{ padding: "14px 20px 0" }}>
         <div className="card" style={{ padding: "4px 4px" }}>
-          <SettingRow icon="spark" label="Round-ups to Savings" value="On" toggle />
-          <SettingRow icon="info" label="Remind me on payday" value="On" toggle />
-          <SettingRow icon="scan" label="Lock with Face ID" value="Off" toggle off />
+          <SettingRow
+            icon="spark"
+            label="Round-ups to Savings"
+            toggle
+            off={!profile.roundUpsEnabled}
+            onClick={handleToggleRoundUps}
+          />
+          <SettingRow
+            icon="info"
+            label={
+              profile.paydayRemindersOn && profile.paydayDayOfMonth
+                ? `Payday reminders · day ${profile.paydayDayOfMonth}`
+                : "Remind me on payday"
+            }
+            onClick={() => setPaydayOpen(true)}
+          />
+          <SettingRow
+            icon="scan"
+            label="App Lock (PIN)"
+            value={profile.appLockEnabled ? "On" : "Off"}
+            onClick={() => setLockOpen(true)}
+          />
         </div>
       </div>
 
       <div style={{ padding: "14px 20px 0" }}>
         <div className="card" style={{ padding: "4px 4px" }}>
-          <SettingRow icon="share" label="Export this month" value="CSV / PDF" />
-          <SettingRow icon="history" label="View past months" />
-          <SettingRow icon="info" label="About Pesa" value="v0.1" />
+          <a
+            href="/api/export/transactions"
+            download
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          >
+            <SettingRow icon="share" label="Export this month" value="CSV" onClick={() => {}} />
+          </a>
+          <Link href="/months" style={{ textDecoration: "none", color: "inherit" }}>
+            <SettingRow icon="history" label="View past months" onClick={() => {}} />
+          </Link>
+          <SettingRow
+            icon="info"
+            label="About Pesa"
+            value="v0.2"
+            onClick={() => setAboutOpen(true)}
+          />
         </div>
       </div>
 
@@ -317,6 +446,12 @@ function SettingsPanel({
             icon="history"
             label={resetting ? "Resetting…" : "Reset this month"}
             onClick={handleReset}
+            danger
+          />
+          <SettingRow
+            icon="close"
+            label="Delete my account"
+            onClick={() => setDeleteOpen(true)}
             danger
           />
         </div>
@@ -334,6 +469,23 @@ function SettingsPanel({
         open={editOpen}
         onClose={() => setEditOpen(false)}
         profile={profile}
+      />
+      <PaydayPrefsSheet
+        open={paydayOpen}
+        onClose={() => setPaydayOpen(false)}
+        initialEnabled={profile.paydayRemindersOn}
+        initialDay={profile.paydayDayOfMonth}
+      />
+      <AppLockSheet
+        open={lockOpen}
+        onClose={() => setLockOpen(false)}
+        enabled={profile.appLockEnabled}
+      />
+      <AboutSheet open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <DeleteAccountSheet
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        email={profile.email}
       />
     </>
   )

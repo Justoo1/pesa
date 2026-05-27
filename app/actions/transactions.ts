@@ -12,17 +12,30 @@ const disburseSchema = z.object({
   method: z.string().max(40).optional(),
 })
 
+const ROUND_UP_STEP = 50
+
 export async function disburse(input: z.infer<typeof disburseSchema>) {
   const userId = await requireUserId()
   const { bucketId, amount, note, method } = disburseSchema.parse(input)
 
-  const bucket = await prisma.bucket.findFirst({
-    where: { id: bucketId, userId },
-    select: { id: true },
-  })
+  const [bucket, user, savingsBucket] = await Promise.all([
+    prisma.bucket.findFirst({
+      where: { id: bucketId, userId },
+      select: { id: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { roundUpsEnabled: true },
+    }),
+    prisma.bucket.findFirst({
+      where: { userId, kind: "future", archivedAt: null },
+      orderBy: { priority: "asc" },
+      select: { id: true },
+    }),
+  ])
   if (!bucket) throw new Error("Bucket not found")
 
-  const [txn] = await prisma.$transaction([
+  const ops = [
     prisma.transaction.create({
       data: {
         userId,
@@ -36,8 +49,36 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
       where: { id: bucketId },
       data: { allocated: { increment: amount } },
     }),
-  ])
+  ]
+
+  // Round-up: if enabled, route the rounding remainder to the first future-kind
+  // pot (typically "Savings"). Skip when the target pot is the savings pot
+  // itself (can't round into yourself).
+  let roundUp = 0
+  if (user?.roundUpsEnabled && savingsBucket && savingsBucket.id !== bucketId) {
+    const remainder = amount % ROUND_UP_STEP
+    roundUp = remainder === 0 ? 0 : ROUND_UP_STEP - remainder
+    if (roundUp > 0) {
+      ops.push(
+        prisma.transaction.create({
+          data: {
+            userId,
+            bucketId: savingsBucket.id,
+            amount: roundUp,
+            note: "Round-up",
+            method: method || "MoMo",
+          },
+        }),
+        prisma.bucket.update({
+          where: { id: savingsBucket.id },
+          data: { allocated: { increment: roundUp } },
+        }),
+      )
+    }
+  }
+
+  await prisma.$transaction(ops)
 
   revalidatePath("/")
-  return { id: txn.id }
+  return { roundUp }
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { fmtMoney } from "../format"
 import { Ring } from "../ui"
 import type { AppState, BucketColor, MonthRow } from "../types"
@@ -15,7 +16,12 @@ export function InsightsScreen({
   months: MonthRow[]
   netWorth: number
 }) {
-  const max = Math.max(1, ...months.map((m) => m.total))
+  const [view, setView] = useState<"saved" | "all">("all")
+  const max =
+    view === "saved"
+      ? Math.max(1, ...months.map((m) => m.saved))
+      : Math.max(1, ...months.map((m) => m.total))
+  const noData = months.every((m) => m.total === 0)
   const priorMonths = months.slice(0, -1)
   const priorWithData = priorMonths.filter((m) => m.saved > 0)
   const avgSaved =
@@ -30,11 +36,14 @@ export function InsightsScreen({
   const prevMonth = months[months.length - 2] ?? { saved: 0, gave: 0, lived: 0, total: 0 }
   const trendDelta = currMonth.saved - prevMonth.saved
 
+  // Only show pots that have actually received money this month, sorted by
+  // how much landed in them (largest first).
   const flows = state.buckets
+    .filter((b) => b.allocated > 0)
     .slice()
-    .sort((a, b) => b.target - a.target)
+    .sort((a, b) => b.allocated - a.allocated)
     .slice(0, 6)
-  const flowMax = Math.max(...flows.map((f) => f.target))
+  const flowMax = Math.max(1, ...flows.map((f) => f.allocated))
 
   const flowBarClass = (c: BucketColor) =>
     ({ clay: "clay", green: "", gold: "gold", rose: "rose", sage: "sage" }[c])
@@ -120,11 +129,29 @@ export function InsightsScreen({
             6-month flow
           </div>
           <div className="seg">
-            <button className="on">Saved</button>
-            <button>All</button>
+            <button
+              className={view === "saved" ? "on" : ""}
+              onClick={() => setView("saved")}
+            >
+              Saved
+            </button>
+            <button
+              className={view === "all" ? "on" : ""}
+              onClick={() => setView("all")}
+            >
+              All
+            </button>
           </div>
         </div>
         <div className="card" style={{ padding: 16 }}>
+          {noData && (
+            <div
+              className="body"
+              style={{ textAlign: "center", padding: "12px 4px" }}
+            >
+              Disburse a few transfers to see your trends.
+            </div>
+          )}
           <div
             style={{
               display: "grid",
@@ -161,26 +188,31 @@ export function InsightsScreen({
                       gap: 2,
                     }}
                   >
-                    <div
-                      style={{
-                        height: `${liveH}%`,
-                        background: "var(--clay-soft)",
-                        borderRadius: "4px 4px 0 0",
-                        opacity: isCurr ? 1 : 0.7,
-                      }}
-                    ></div>
-                    <div
-                      style={{
-                        height: `${giveH}%`,
-                        background: "var(--gold)",
-                        opacity: isCurr ? 1 : 0.7,
-                      }}
-                    ></div>
+                    {view === "all" && (
+                      <>
+                        <div
+                          style={{
+                            height: `${liveH}%`,
+                            background: "var(--clay-soft)",
+                            borderRadius: "4px 4px 0 0",
+                            opacity: isCurr ? 1 : 0.7,
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            height: `${giveH}%`,
+                            background: "var(--gold)",
+                            opacity: isCurr ? 1 : 0.7,
+                          }}
+                        ></div>
+                      </>
+                    )}
                     <div
                       style={{
                         height: `${savedH}%`,
                         background: "var(--green)",
-                        borderRadius: "0 0 4px 4px",
+                        borderRadius:
+                          view === "saved" ? "4px 4px 4px 4px" : "0 0 4px 4px",
                         opacity: isCurr ? 1 : 0.7,
                       }}
                     ></div>
@@ -225,44 +257,50 @@ export function InsightsScreen({
           Where it went
         </div>
         <div className="card" style={{ padding: "10px 16px" }}>
-          {flows.map((b) => {
-            const w = Math.max(8, (b.target / flowMax) * 100)
-            return (
-              <div key={b.id} className="flow-row">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    minWidth: 0,
-                  }}
-                >
-                  <span className="dot" style={{ background: dotBg(b.color) }}></span>
-                  <span
+          {flows.length === 0 ? (
+            <div className="body" style={{ padding: "12px 0", textAlign: "center" }}>
+              No disbursements yet this month.
+            </div>
+          ) : (
+            flows.map((b) => {
+              const w = Math.max(8, (b.allocated / flowMax) * 100)
+              return (
+                <div key={b.id} className="flow-row">
+                  <div
                     style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      minWidth: 0,
                     }}
                   >
-                    {b.name}
-                  </span>
+                    <span className="dot" style={{ background: dotBg(b.color) }}></span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {b.name}
+                    </span>
+                  </div>
+                  <div
+                    className={`flow-bar ${flowBarClass(b.color)}`}
+                    style={{ width: `${w}%` }}
+                  ></div>
+                  <div
+                    className="num"
+                    style={{ fontSize: 12, textAlign: "right", color: "var(--ink-2)" }}
+                  >
+                    {fmtMoney(b.allocated, currency)}
+                  </div>
                 </div>
-                <div
-                  className={`flow-bar ${flowBarClass(b.color)}`}
-                  style={{ width: `${w}%` }}
-                ></div>
-                <div
-                  className="num"
-                  style={{ fontSize: 12, textAlign: "right", color: "var(--ink-2)" }}
-                >
-                  {fmtMoney(b.target, currency)}
-                </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
       </div>
 

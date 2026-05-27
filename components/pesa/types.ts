@@ -31,6 +31,7 @@ export type IconName =
   | "info"
   | "share"
   | "tag"
+  | "logout"
 
 export type Bucket = {
   id: string
@@ -60,6 +61,17 @@ export type UserProfile = {
   salary: number
   currency: string
   monthLabel: string
+  roundUpsEnabled: boolean
+  paydayRemindersOn: boolean
+  paydayDayOfMonth: number | null
+  appLockEnabled: boolean
+}
+
+export type WrapHighlight = {
+  iconColor: "sage" | "gold" | "rose"
+  icon: IconName
+  title: string
+  subtitle: string
 }
 
 export type MonthRow = {

@@ -1,8 +1,10 @@
 "use client"
 
+import { useMemo, useState } from "react"
+import Link from "next/link"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
-import type { AppState } from "../types"
+import type { AppState, MonthRow } from "../types"
 
 function WrapStat({
   label,
@@ -46,16 +48,25 @@ function WrapStat({
   )
 }
 
+type Highlight = {
+  icon: "spark" | "trend" | "heart"
+  tone: "sage" | "gold" | "rose"
+  title: string
+  subtitle: string
+}
+
 export function WrapScreen({
   state,
   currency,
   userName,
   monthLabel,
+  months,
 }: {
   state: AppState
   currency: string
   userName: string
   monthLabel: string
+  months: MonthRow[]
 }) {
   const totalAllocated = state.buckets.reduce((s, b) => s + b.allocated, 0)
   const saved = state.buckets
@@ -68,6 +79,109 @@ export function WrapScreen({
     .filter((b) => b.kind === "essential" || b.kind === "bills")
     .reduce((s, b) => s + b.allocated, 0)
   const fullCount = state.buckets.filter((b) => b.allocated >= b.target).length
+
+  const highlights = useMemo<Highlight[]>(() => {
+    const out: Highlight[] = []
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthTxns = state.ledger.filter(
+      (t) => new Date(t.occurredAt) >= monthStart,
+    )
+
+    // Card 1: earliest day-of-month a pot was filled. Use the earliest txn
+    // that pushed any bucket to its target.
+    const fullBuckets = state.buckets.filter((b) => b.allocated >= b.target)
+    if (fullBuckets.length > 0 && monthTxns.length > 0) {
+      const earliest = monthTxns
+        .filter((t) => fullBuckets.some((b) => b.id === t.bucketId))
+        .map((t) => new Date(t.occurredAt))
+        .sort((a, b) => a.getTime() - b.getTime())[0]
+      if (earliest) {
+        const bucket = fullBuckets.find(
+          (b) =>
+            monthTxns.find((t) => new Date(t.occurredAt).getTime() === earliest.getTime())
+              ?.bucketId === b.id,
+        )
+        out.push({
+          icon: "spark",
+          tone: "sage",
+          title: `You hit ${bucket?.name ?? "a pot"} on day ${earliest.getDate()}`,
+          subtitle: "Filling pots early is the dream. ✨",
+        })
+      }
+    }
+
+    // Card 2: this month's saved vs the best prior month in the window.
+    const prior = months.slice(0, -1)
+    const bestPrior = Math.max(0, ...prior.map((m) => m.saved))
+    if (saved > 0) {
+      if (saved >= bestPrior && bestPrior > 0) {
+        out.push({
+          icon: "trend",
+          tone: "gold",
+          title: `Savings grew ${fmtMoney(saved, currency)}`,
+          subtitle: "Your best savings month in the window.",
+        })
+      } else {
+        out.push({
+          icon: "trend",
+          tone: "gold",
+          title: `Savings grew ${fmtMoney(saved, currency)}`,
+          subtitle:
+            bestPrior > 0
+              ? `Still ${fmtMoney(bestPrior - saved, currency)} short of your best month.`
+              : "First savings on the board.",
+        })
+      }
+    }
+
+    // Card 3: on-time-ness for give/people pots — funded before day 10.
+    const givePots = state.buckets.filter(
+      (b) => b.kind === "give" || b.kind === "people",
+    )
+    const onTime = givePots.filter((b) => b.allocated >= b.target)
+    if (givePots.length > 0 && onTime.length === givePots.length) {
+      const names = onTime
+        .slice(0, 2)
+        .map((b) => b.name)
+        .join(" & ")
+      out.push({
+        icon: "heart",
+        tone: "rose",
+        title: `${names}: on time`,
+        subtitle: "Same week, every month — that's consistency.",
+      })
+    }
+
+    if (out.length === 0) {
+      out.push({
+        icon: "spark",
+        tone: "sage",
+        title: "Add a few transfers to see your highlights",
+        subtitle: "Your wrap fills up as the month unfolds.",
+      })
+    }
+    return out.slice(0, 3)
+  }, [state.buckets, state.ledger, months, currency, saved])
+
+  const [shareNote, setShareNote] = useState<string | null>(null)
+  const handleShare = async () => {
+    const text = `My Pesa ${monthLabel} wrap:\n· Disbursed ${fmtMoney(totalAllocated, currency)}\n· Saved ${fmtMoney(saved, currency)}, gave ${fmtMoney(given, currency)}, lived ${fmtMoney(lived, currency)}\n· ${fullCount}/${state.buckets.length} pots full`
+    const data = { title: "My Pesa wrap", text }
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share(data)
+        return
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text)
+        setShareNote("Copied to clipboard")
+        setTimeout(() => setShareNote(null), 2200)
+      }
+    } catch {
+      // user cancelled or share failed — silent
+    }
+  }
 
   return (
     <>
@@ -163,35 +277,21 @@ export function WrapScreen({
           <div className="serif" style={{ fontSize: 20, lineHeight: 1.1, marginBottom: 12 }}>
             Highlights for <span className="italic">{userName}</span>
           </div>
-          <div className="row" style={{ padding: "10px 0" }}>
-            <div className="row-icon sage">
-              <Icon name="spark" size={16} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>You hit Rent on day 3</div>
-              <div className="tiny">Earliest you&apos;ve ever filled it. ✨</div>
-            </div>
-          </div>
-          <div className="row">
-            <div className="row-icon gold">
-              <Icon name="trend" size={16} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Savings grew {fmtMoney(saved, currency)}
+          {highlights.map((h, i) => (
+            <div
+              key={i}
+              className="row"
+              style={i === 0 ? { padding: "10px 0" } : undefined}
+            >
+              <div className={`row-icon ${h.tone}`}>
+                <Icon name={h.icon} size={16} />
               </div>
-              <div className="tiny">Your best Savings month since February.</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{h.title}</div>
+                <div className="tiny">{h.subtitle}</div>
+              </div>
             </div>
-          </div>
-          <div className="row">
-            <div className="row-icon rose">
-              <Icon name="heart" size={16} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Mom & Tithe: on time</div>
-              <div className="tiny">Same week, every month — that&apos;s consistency.</div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -203,12 +303,21 @@ export function WrapScreen({
           gap: 8,
         }}
       >
-        <button className="btn btn-primary btn-block">
-          <Icon name="share" size={16} /> Share my wrap
+        <button
+          className="btn btn-primary btn-block"
+          onClick={handleShare}
+          type="button"
+        >
+          <Icon name="share" size={16} />{" "}
+          {shareNote ? shareNote : "Share my wrap"}
         </button>
-        <button className="btn btn-soft btn-icon" aria-label="History">
+        <Link
+          href="/months"
+          className="btn btn-soft btn-icon"
+          aria-label="History"
+        >
           <Icon name="history" size={18} />
-        </button>
+        </Link>
       </div>
     </>
   )

@@ -220,6 +220,14 @@ export function Icon({ name, size = 20, stroke = 1.7 }: IconProps) {
           <circle cx="8" cy="8" r="1.4" />
         </svg>
       )
+    case "logout":
+      return (
+        <svg {...common}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </svg>
+      )
     default:
       return (
         <svg {...common}>

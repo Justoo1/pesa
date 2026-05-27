@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import {
   signInWithCredentials,
   signInWithEmail,
@@ -64,6 +65,15 @@ export function SignInForms() {
         <button type="submit" className="btn btn-green btn-block" disabled={isPending}>
           Sign in
         </button>
+        <div style={{ textAlign: "center", marginTop: 2 }}>
+          <Link
+            href="/forgot-password"
+            className="small"
+            style={{ color: "var(--ink-2)", textDecoration: "underline" }}
+          >
+            Forgot password?
+          </Link>
+        </div>
       </form>
 
       <Divider label="or magic link" />

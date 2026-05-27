@@ -1,6 +1,12 @@
+const DECIMAL_CURRENCIES = new Set(["$", "€", "£", "₦", "₹"])
+
 export function fmtMoney(n: number, currency = "GH₵"): string {
   const num = Number(n) || 0
-  return `${currency}${num.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+  const wantDecimals = DECIMAL_CURRENCIES.has(currency)
+  return `${currency}${num.toLocaleString("en-US", {
+    minimumFractionDigits: wantDecimals ? 2 : 0,
+    maximumFractionDigits: wantDecimals ? 2 : 0,
+  })}`
 }
 
 export function fmtMoneyDecimal(n: number, currency = "GH₵"): string {

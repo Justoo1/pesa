@@ -25,6 +25,13 @@ model User {
   currency    String   @default("GH₵")
   monthLabel  String   @default("This month")
 
+  // pesa settings flags
+  roundUpsEnabled   Boolean @default(false)
+  paydayRemindersOn Boolean @default(false)
+  paydayDayOfMonth  Int?
+  appLockEnabled    Boolean @default(false)
+  appLockPinHash    String?
+
   accounts Account[]
   sessions Session[]
   buckets  Bucket[]

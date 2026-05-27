@@ -66,7 +66,7 @@ export function HomeScreen({
             aria-label="Sign out"
             title="Sign out"
           >
-            <Icon name="back" size={18} />
+            <Icon name="logout" size={18} />
           </button>
         </form>
       </div>
@@ -223,23 +223,56 @@ export function HomeScreen({
           <Icon name="edit" size={12} /> Edit
         </button>
       </div>
-      <div
-        style={{
-          padding: "0 20px 28px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-        }}
-      >
-        {buckets.map((b) => (
-          <BucketCard
-            key={b.id}
-            bucket={b}
-            onClick={() => onOpenBucket(b.id)}
-            currency={currency}
-          />
-        ))}
-      </div>
+      {buckets.length === 0 ? (
+        <div style={{ padding: "0 20px 28px" }}>
+          <div
+            className="card"
+            style={{
+              padding: 22,
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <div
+              className="serif"
+              style={{ fontSize: 22, lineHeight: 1.1, color: "var(--ink)" }}
+            >
+              No pots yet
+            </div>
+            <div className="body" style={{ maxWidth: 280 }}>
+              Create your first pot to start carving up your salary.
+            </div>
+            <button
+              className="btn btn-green"
+              style={{ marginTop: 8 }}
+              onClick={() => onGoTo("settings")}
+            >
+              <Icon name="plus" size={16} /> Create a pot
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            padding: "0 20px 28px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
+          {buckets.map((b) => (
+            <BucketCard
+              key={b.id}
+              bucket={b}
+              onClick={() => onOpenBucket(b.id)}
+              currency={currency}
+            />
+          ))}
+        </div>
+      )}
     </>
   )
 }

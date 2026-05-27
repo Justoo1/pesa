@@ -135,6 +135,17 @@ function DisburseFlowContent({
             </span>{" "}
             still to disburse this month.
           </div>
+          {state.buckets.filter((b) => b.allocated < b.target).length === 0 ? (
+            <div
+              className="card"
+              style={{ padding: 22, textAlign: "center" }}
+            >
+              <div className="serif" style={{ fontSize: 20, marginBottom: 4 }}>
+                Every pot is full
+              </div>
+              <div className="body">Nothing left to fill this month. Nice work.</div>
+            </div>
+          ) : null}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {state.buckets.map((b) => {
               const done = b.allocated >= b.target

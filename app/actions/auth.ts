@@ -1,5 +1,6 @@
 "use server"
 
+import { randomBytes } from "crypto"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { AuthError } from "next-auth"
@@ -93,4 +94,107 @@ export async function signInWithGoogle() {
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/sign-in" })
+}
+
+const RESET_TOKEN_BYTES = 32
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
+
+async function sendResetEmail(email: string, resetUrl: string) {
+  const apiKey = process.env.AUTH_RESEND_KEY
+  if (!apiKey) {
+    console.warn("AUTH_RESEND_KEY missing — printing reset link:", resetUrl)
+    return
+  }
+  const from =
+    process.env.AUTH_EMAIL_FROM?.trim() || "Pesa <onboarding@resend.dev>"
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: "Reset your Pesa password",
+      html: `<p>You requested a password reset for Pesa.</p>
+<p><a href="${resetUrl}">Click here to choose a new password.</a></p>
+<p>The link expires in 1 hour. If you didn't request this, ignore this email.</p>`,
+      text: `Reset your Pesa password: ${resetUrl}\n\nThe link expires in 1 hour.`,
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Resend failed: ${res.status} ${body}`)
+  }
+}
+
+export async function requestPasswordReset(
+  formData: FormData,
+): Promise<AuthResult> {
+  const email = String(formData.get("email") ?? "").toLowerCase().trim()
+  if (!email) return { ok: false, error: "Enter an email address." }
+
+  const user = await prisma.user.findUnique({ where: { email } })
+  // Always succeed silently to avoid leaking which emails are registered.
+  if (!user) return { ok: true }
+
+  const token = randomBytes(RESET_TOKEN_BYTES).toString("hex")
+  const expires = new Date(Date.now() + RESET_TOKEN_TTL_MS)
+  await prisma.verificationToken.create({
+    data: { identifier: email, token, expires },
+  })
+
+  const base = process.env.AUTH_URL ?? "http://localhost:3000"
+  const resetUrl = `${base}/reset-password/${token}`
+  try {
+    await sendResetEmail(email, resetUrl)
+  } catch (e) {
+    console.error("sendResetEmail failed:", e)
+    return { ok: false, error: "Could not send reset email." }
+  }
+  return { ok: true }
+}
+
+export async function resetPassword(
+  formData: FormData,
+): Promise<AuthResult> {
+  const token = String(formData.get("token") ?? "")
+  const password = String(formData.get("password") ?? "")
+  if (!token || password.length < 8) {
+    return { ok: false, error: "Token and a password of 8+ characters required." }
+  }
+
+  const record = await prisma.verificationToken.findUnique({ where: { token } })
+  if (!record || record.expires < new Date()) {
+    if (record) {
+      await prisma.verificationToken
+        .delete({ where: { token } })
+        .catch(() => undefined)
+    }
+    return { ok: false, error: "Reset link is invalid or expired." }
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10)
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { email: record.identifier },
+      data: { passwordHash },
+    }),
+    prisma.verificationToken.delete({ where: { token } }),
+  ])
+
+  try {
+    await signIn("credentials", {
+      email: record.identifier,
+      password,
+      redirectTo: "/",
+    })
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return { ok: false, error: "Password reset, but sign-in failed. Try signing in." }
+    }
+    throw e
+  }
+  return { ok: true }
 }

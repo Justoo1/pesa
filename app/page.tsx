@@ -34,6 +34,10 @@ export default async function Page() {
         salary: true,
         currency: true,
         monthLabel: true,
+        roundUpsEnabled: true,
+        paydayRemindersOn: true,
+        paydayDayOfMonth: true,
+        appLockEnabled: true,
       },
     }),
     prisma.bucket.findMany({
@@ -55,6 +59,10 @@ export default async function Page() {
     salary: user.salary,
     currency: user.currency,
     monthLabel: user.monthLabel,
+    roundUpsEnabled: user.roundUpsEnabled,
+    paydayRemindersOn: user.paydayRemindersOn,
+    paydayDayOfMonth: user.paydayDayOfMonth,
+    appLockEnabled: user.appLockEnabled,
   }
 
   const bucketsClient: Bucket[] = buckets.map((b) => ({

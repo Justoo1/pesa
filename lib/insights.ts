@@ -20,6 +20,54 @@ const MONTH_LABELS = [
   "Dec",
 ]
 
+export type AllTimeMonth = {
+  ym: string // "YYYY-MM"
+  label: string // "May 2026"
+  saved: number
+  gave: number
+  lived: number
+  total: number
+}
+
+/**
+ * Load every month with any activity (or current month even if empty).
+ * Ordered newest-first.
+ */
+export async function loadAllMonths(userId: string): Promise<AllTimeMonth[]> {
+  const txns = await prisma.transaction.findMany({
+    where: { userId },
+    select: { amount: true, occurredAt: true, bucket: { select: { kind: true } } },
+  })
+
+  const byYm = new Map<string, AllTimeMonth>()
+  const ensure = (d: Date) => {
+    const y = d.getFullYear()
+    const m = d.getMonth()
+    const ym = `${y}-${String(m + 1).padStart(2, "0")}`
+    if (!byYm.has(ym)) {
+      const label = new Date(y, m, 1).toLocaleString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+      byYm.set(ym, { ym, label, saved: 0, gave: 0, lived: 0, total: 0 })
+    }
+    return byYm.get(ym)!
+  }
+
+  // Always surface the current month so users see a row even with zero txns.
+  ensure(new Date())
+
+  for (const t of txns) {
+    const row = ensure(t.occurredAt)
+    if (SAVED_KINDS.has(t.bucket.kind)) row.saved += t.amount
+    else if (GAVE_KINDS.has(t.bucket.kind)) row.gave += t.amount
+    else if (LIVED_KINDS.has(t.bucket.kind)) row.lived += t.amount
+    row.total += t.amount
+  }
+
+  return Array.from(byYm.values()).sort((a, b) => b.ym.localeCompare(a.ym))
+}
+
 export async function loadInsights(
   userId: string,
 ): Promise<{ months: MonthRow[]; netWorth: number }> {

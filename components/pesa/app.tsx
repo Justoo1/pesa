@@ -16,6 +16,7 @@ import { BucketDetailScreen } from "./screens/bucket-detail"
 import { InsightsScreen } from "./screens/insights"
 import { WrapScreen } from "./screens/wrap"
 import { MoreScreen } from "./screens/more"
+import { LockGate } from "./lock-gate"
 import { disburse as disburseAction } from "@/app/actions/transactions"
 import {
   adjustTarget as adjustTargetAction,
@@ -217,6 +218,7 @@ export function PesaApp({
         currency={profile.currency}
         userName={profile.displayName}
         monthLabel={profile.monthLabel}
+        months={months}
       />
     )
   } else if (tab === "settings") {
@@ -232,7 +234,7 @@ export function PesaApp({
   }
 
   return (
-    <>
+    <LockGate enabled={profile.appLockEnabled}>
       <div className="scroll" style={{ position: "relative" }}>
         {content}
       </div>
@@ -255,6 +257,6 @@ export function PesaApp({
       />
 
       {toast && <Toast>{toast}</Toast>}
-    </>
+    </LockGate>
   )
 }

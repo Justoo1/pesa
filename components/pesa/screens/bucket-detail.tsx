@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { Icon } from "../icons"
 import { fmtMoney, fmtTxnDate } from "../format"
 import { Pot } from "../ui"
+import { EditPotSheet } from "./edit-pot"
 import type { AppState } from "../types"
 
 export function BucketDetailScreen({
@@ -18,11 +20,26 @@ export function BucketDetailScreen({
   onOpenDisburse: (id: string) => void
   currency: string
 }) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [editFocus, setEditFocus] = useState<"target" | undefined>(undefined)
+
   const bucket = state.buckets.find((b) => b.id === bucketId)
-  const ledger = state.ledger.filter((t) => t.bucketId === bucketId)
+
+  // Filter ledger to current calendar month so the "This month" label matches.
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const ledger = state.ledger.filter(
+    (t) => t.bucketId === bucketId && new Date(t.occurredAt) >= monthStart,
+  )
+
   if (!bucket) return null
-  const pct = (bucket.allocated / bucket.target) * 100
+  const pct = bucket.target > 0 ? (bucket.allocated / bucket.target) * 100 : 0
   const remaining = Math.max(0, bucket.target - bucket.allocated)
+
+  const openEdit = (focus?: "target") => {
+    setEditFocus(focus)
+    setEditOpen(true)
+  }
 
   return (
     <>
@@ -43,7 +60,11 @@ export function BucketDetailScreen({
         >
           Pot · {bucket.kind}
         </div>
-        <button className="btn btn-ghost btn-icon" aria-label="More">
+        <button
+          className="btn btn-ghost btn-icon"
+          aria-label="Edit pot"
+          onClick={() => openEdit()}
+        >
           <Icon name="more" size={18} />
         </button>
       </div>
@@ -79,7 +100,7 @@ export function BucketDetailScreen({
           <button className="btn btn-green" onClick={() => onOpenDisburse(bucket.id)}>
             <Icon name="send" size={16} /> Top up
           </button>
-          <button className="btn btn-soft">
+          <button className="btn btn-soft" onClick={() => openEdit("target")}>
             <Icon name="edit" size={16} /> Adjust target
           </button>
         </div>
@@ -149,6 +170,13 @@ export function BucketDetailScreen({
           </div>
         )}
       </div>
+
+      <EditPotSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        bucket={bucket}
+        focusField={editFocus}
+      />
     </>
   )
 }
