@@ -66,6 +66,59 @@ export async function archiveBucket(input: z.infer<typeof archiveSchema>) {
   revalidatePath("/")
 }
 
+export async function listArchivedBuckets() {
+  const userId = await requireUserId()
+  return prisma.bucket.findMany({
+    where: { userId, archivedAt: { not: null } },
+    orderBy: { archivedAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+      icon: true,
+      kind: true,
+      target: true,
+      allocated: true,
+      archivedAt: true,
+      _count: { select: { txns: true } },
+    },
+  })
+}
+
+export async function restoreBucket(input: z.infer<typeof archiveSchema>) {
+  const userId = await requireUserId()
+  const { bucketId } = archiveSchema.parse(input)
+  const owned = await prisma.bucket.findFirst({
+    where: { id: bucketId, userId, archivedAt: { not: null } },
+    select: { id: true },
+  })
+  if (!owned) throw new Error("Pot not found")
+  // Append to the end of the active list so a restore never disturbs the
+  // user's existing pot order.
+  const activeCount = await prisma.bucket.count({
+    where: { userId, archivedAt: null },
+  })
+  await prisma.bucket.update({
+    where: { id: bucketId },
+    data: { archivedAt: null, priority: activeCount + 1 },
+  })
+  revalidatePath("/")
+}
+
+export async function deleteBucket(input: z.infer<typeof archiveSchema>) {
+  const userId = await requireUserId()
+  const { bucketId } = archiveSchema.parse(input)
+  // Only allow hard-delete on already-archived pots so an accidental tap from
+  // the main app can never wipe a live pot's history. Cascade in the schema
+  // takes care of the transactions.
+  const result = await prisma.bucket.deleteMany({
+    where: { id: bucketId, userId, archivedAt: { not: null } },
+  })
+  if (result.count === 0) throw new Error("Pot not found or not archived")
+  revalidatePath("/")
+  revalidatePath("/months")
+}
+
 const updateSchema = z.object({
   bucketId: z.string().min(1),
   name: z.string().min(1).max(40),

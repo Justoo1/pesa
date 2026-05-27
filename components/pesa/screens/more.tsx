@@ -12,6 +12,7 @@ import { EditProfileSheet } from "./edit-profile"
 import { PaydayPrefsSheet } from "./payday-prefs"
 import { AppLockSheet } from "./app-lock"
 import { AboutSheet } from "./about"
+import { ArchivedPotsSheet } from "./archived-pots"
 import { DeleteAccountSheet } from "./delete-account"
 import { signOutAction } from "@/app/actions/auth"
 import { resetMonth, toggleRoundUps } from "@/app/actions/settings"
@@ -324,6 +325,7 @@ function SettingsPanel({
   const [paydayOpen, setPaydayOpen] = useState(false)
   const [lockOpen, setLockOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [archivedOpen, setArchivedOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [resetting, startResetting] = useTransition()
   const [, startToggle] = useTransition()
@@ -432,6 +434,11 @@ function SettingsPanel({
             <SettingRow icon="history" label="View past months" onClick={() => {}} />
           </Link>
           <SettingRow
+            icon="piggy"
+            label="Archived pots"
+            onClick={() => setArchivedOpen(true)}
+          />
+          <SettingRow
             icon="info"
             label="About Pesa"
             value="v0.2"
@@ -482,6 +489,11 @@ function SettingsPanel({
         enabled={profile.appLockEnabled}
       />
       <AboutSheet open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <ArchivedPotsSheet
+        open={archivedOpen}
+        onClose={() => setArchivedOpen(false)}
+        currency={currency}
+      />
       <DeleteAccountSheet
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}

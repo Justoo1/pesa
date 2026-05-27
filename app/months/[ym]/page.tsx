@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { fmtMoney, fmtTxnDate } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
 import type { BucketColor, IconName } from "@/components/pesa/types"
+import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
 
 export const dynamic = "force-dynamic"
 
@@ -29,7 +30,7 @@ export default async function MonthDetailPage({
   const end = new Date(year, month, 1)
   const label = start.toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  const [user, txns] = await Promise.all([
+  const [user, txns, activeBuckets] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { currency: true },
@@ -41,8 +42,18 @@ export default async function MonthDetailPage({
         bucket: { select: { name: true, icon: true, color: true, kind: true } },
       },
     }),
+    prisma.bucket.findMany({
+      where: { userId, archivedAt: null },
+      orderBy: { priority: "asc" },
+      select: { id: true, name: true, color: true, icon: true },
+    }),
   ])
   const currency = user.currency
+
+  const now = new Date()
+  const isPastMonth =
+    year < now.getFullYear() ||
+    (year === now.getFullYear() && month - 1 < now.getMonth())
 
   let saved = 0
   let gave = 0
@@ -76,7 +87,15 @@ export default async function MonthDetailPage({
                 <Icon name="back" size={18} />
               </Link>
               <span style={{ fontWeight: 600 }}>{label}</span>
-              <span style={{ width: 44 }} />
+              {isPastMonth ? (
+                <AddPastTxnButton
+                  ym={ym}
+                  buckets={activeBuckets as Parameters<typeof AddPastTxnButton>[0]["buckets"]}
+                  currency={currency}
+                />
+              ) : (
+                <span style={{ width: 44 }} />
+              )}
             </div>
 
             <div className="scroll" style={{ flex: 1, padding: "8px 20px 28px" }}>

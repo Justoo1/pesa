@@ -10,13 +10,23 @@ const disburseSchema = z.object({
   amount: z.number().int().positive(),
   note: z.string().max(200).optional(),
   method: z.string().max(40).optional(),
+  occurredAt: z.coerce.date().optional(),
 })
 
 const ROUND_UP_STEP = 50
 
+function isInCurrentCalendarMonth(d: Date) {
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+}
+
 export async function disburse(input: z.infer<typeof disburseSchema>) {
   const userId = await requireUserId()
-  const { bucketId, amount, note, method } = disburseSchema.parse(input)
+  const { bucketId, amount, note, method, occurredAt } = disburseSchema.parse(input)
+  // Round-ups only make sense for transactions in the current month — backdated
+  // entries should land cleanly in their own month without spilling a remainder
+  // into today's "future" pot.
+  const allowRoundUp = !occurredAt || isInCurrentCalendarMonth(occurredAt)
 
   const [bucket, user, savingsBucket] = await Promise.all([
     prisma.bucket.findFirst({
@@ -43,6 +53,7 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
         amount,
         note: note || "Top-up",
         method: method || "MoMo",
+        ...(occurredAt ? { occurredAt } : {}),
       },
     }),
     prisma.bucket.update({
@@ -55,7 +66,7 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   // pot (typically "Savings"). Skip when the target pot is the savings pot
   // itself (can't round into yourself).
   let roundUp = 0
-  if (user?.roundUpsEnabled && savingsBucket && savingsBucket.id !== bucketId) {
+  if (allowRoundUp && user?.roundUpsEnabled && savingsBucket && savingsBucket.id !== bucketId) {
     const remainder = amount % ROUND_UP_STEP
     roundUp = remainder === 0 ? 0 : ROUND_UP_STEP - remainder
     if (roundUp > 0) {
@@ -80,5 +91,10 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   await prisma.$transaction(ops)
 
   revalidatePath("/")
+  if (occurredAt) {
+    const ym = `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(2, "0")}`
+    revalidatePath("/months")
+    revalidatePath(`/months/${ym}`)
+  }
   return { roundUp }
 }
