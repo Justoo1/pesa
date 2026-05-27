@@ -1,0 +1,400 @@
+"use client"
+
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { Icon } from "../icons"
+import { fmtMoney } from "../format"
+import type { Action, AppState, IconName, UserProfile } from "../types"
+import { AddPotSheet } from "./add-pot"
+import { EditProfileSheet } from "./edit-profile"
+import { signOutAction } from "@/app/actions/auth"
+import { resetMonth } from "@/app/actions/settings"
+
+function SettingRow({
+  icon,
+  label,
+  value,
+  toggle,
+  off,
+  onClick,
+  danger,
+}: {
+  icon: IconName
+  label: string
+  value?: string
+  toggle?: boolean
+  off?: boolean
+  onClick?: () => void
+  danger?: boolean
+}) {
+  const interactive = !!onClick && !toggle
+  const Wrapper = interactive ? "button" : "div"
+  const wrapperProps = interactive
+    ? {
+        onClick,
+        type: "button" as const,
+        style: {
+          width: "100%",
+          appearance: "none" as const,
+          border: 0,
+          background: "transparent",
+          textAlign: "left" as const,
+          cursor: "pointer" as const,
+          color: danger ? "var(--clay-deep)" : "inherit",
+        },
+      }
+    : ({} as Record<string, never>)
+  return (
+    <Wrapper className="row" {...wrapperProps}>
+      <div className="row-icon" style={danger ? { background: "var(--clay-soft)", color: "var(--clay-deep)" } : undefined}>
+        <Icon name={icon} size={16} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+      </div>
+      {toggle ? (
+        <div
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 999,
+            background: off ? "var(--line)" : "var(--green)",
+            position: "relative",
+            transition: "background 200ms ease",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 2,
+              left: off ? 2 : 18,
+              width: 18,
+              height: 18,
+              borderRadius: 999,
+              background: "var(--bg-app)",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              transition: "left 200ms ease",
+            }}
+          ></div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {value && (
+            <span
+              className="num small"
+              style={{ color: "var(--ink-2)", fontWeight: 500 }}
+            >
+              {value}
+            </span>
+          )}
+          {interactive && <Icon name="chevron" size={14} />}
+        </div>
+      )}
+    </Wrapper>
+  )
+}
+
+function SetupPanel({
+  state,
+  dispatch,
+  currency,
+  salary,
+}: {
+  state: AppState
+  dispatch: (a: Action) => void
+  currency: string
+  salary: number
+}) {
+  const [addOpen, setAddOpen] = useState(false)
+  const totalTarget = state.buckets.reduce((s, b) => s + b.target, 0)
+  const remainingTarget = salary - totalTarget
+  return (
+    <>
+      <div style={{ padding: "14px 20px 0" }}>
+        <div
+          className="card"
+          style={{
+            padding: 14,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              className="tiny"
+              style={{ fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}
+            >
+              Total of targets
+            </div>
+            <div className="num" style={{ fontWeight: 600, fontSize: 18, marginTop: 2 }}>
+              {fmtMoney(totalTarget, currency)}{" "}
+              <span style={{ color: "var(--ink-3)", fontWeight: 400, fontSize: 13 }}>
+                / {fmtMoney(salary, currency)}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div
+              className="tiny"
+              style={{ fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}
+            >
+              Buffer
+            </div>
+            <div
+              className="num"
+              style={{
+                fontWeight: 600,
+                fontSize: 18,
+                marginTop: 2,
+                color: remainingTarget >= 0 ? "var(--green-deep)" : "var(--clay-deep)",
+              }}
+            >
+              {remainingTarget >= 0 ? "+" : ""}
+              {fmtMoney(remainingTarget, currency)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 20px 8px" }}>
+        <div className="card" style={{ padding: "4px 4px" }}>
+          {state.buckets.map((b, i) => (
+            <div
+              key={b.id}
+              className="row"
+              style={{
+                borderTop: i === 0 ? "1px solid transparent" : "1px solid var(--line)",
+              }}
+            >
+              <div className={`row-icon ${b.color}`}>
+                <Icon name={b.icon} size={16} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
+                <div className="tiny">
+                  Priority {b.priority} · {b.kind}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  className="btn btn-ghost btn-icon"
+                  style={{ width: 30, height: 30 }}
+                  onClick={() =>
+                    dispatch({ type: "adjustTarget", bucketId: b.id, delta: -100 })
+                  }
+                  aria-label="Decrease"
+                >
+                  <Icon name="minus" size={14} />
+                </button>
+                <div
+                  className="num"
+                  style={{
+                    minWidth: 64,
+                    textAlign: "center",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  {fmtMoney(b.target, currency)}
+                </div>
+                <button
+                  className="btn btn-ghost btn-icon"
+                  style={{ width: 30, height: 30 }}
+                  onClick={() =>
+                    dispatch({ type: "adjustTarget", bucketId: b.id, delta: 100 })
+                  }
+                  aria-label="Increase"
+                >
+                  <Icon name="plus" size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "12px 20px 28px" }}>
+        <button className="btn btn-soft btn-block" onClick={() => setAddOpen(true)}>
+          <Icon name="plus" size={16} /> Add a new pot
+        </button>
+      </div>
+
+      <AddPotSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        dispatch={dispatch}
+      />
+    </>
+  )
+}
+
+function SettingsPanel({
+  currency,
+  salary,
+  profile,
+}: {
+  currency: string
+  salary: number
+  profile: UserProfile
+}) {
+  const router = useRouter()
+  const [editOpen, setEditOpen] = useState(false)
+  const [resetting, startResetting] = useTransition()
+
+  const openEdit = () => setEditOpen(true)
+
+  const handleReset = () => {
+    if (
+      !window.confirm(
+        "Reset this month? This clears every transaction and zeros each pot.",
+      )
+    )
+      return
+    startResetting(async () => {
+      try {
+        await resetMonth()
+        router.refresh()
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : "Could not reset.")
+      }
+    })
+  }
+
+  return (
+    <>
+      <div style={{ padding: "14px 20px 0" }}>
+        <div className="card" style={{ padding: "4px 4px" }}>
+          <SettingRow
+            icon="heart"
+            label="Name"
+            value={profile.displayName}
+            onClick={openEdit}
+          />
+          {profile.email && (
+            <SettingRow icon="send" label="Email" value={profile.email} />
+          )}
+          <SettingRow
+            icon="wallet"
+            label="Salary"
+            value={fmtMoney(salary, currency)}
+            onClick={openEdit}
+          />
+          <SettingRow
+            icon="tag"
+            label="Currency"
+            value={currency}
+            onClick={openEdit}
+          />
+          <SettingRow
+            icon="calendar"
+            label="Month"
+            value={profile.monthLabel}
+            onClick={openEdit}
+          />
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 20px 0" }}>
+        <div className="card" style={{ padding: "4px 4px" }}>
+          <SettingRow icon="spark" label="Round-ups to Savings" value="On" toggle />
+          <SettingRow icon="info" label="Remind me on payday" value="On" toggle />
+          <SettingRow icon="scan" label="Lock with Face ID" value="Off" toggle off />
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 20px 0" }}>
+        <div className="card" style={{ padding: "4px 4px" }}>
+          <SettingRow icon="share" label="Export this month" value="CSV / PDF" />
+          <SettingRow icon="history" label="View past months" />
+          <SettingRow icon="info" label="About Pesa" value="v0.1" />
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 20px 0" }}>
+        <div className="card" style={{ padding: "4px 4px" }}>
+          <SettingRow
+            icon="history"
+            label={resetting ? "Resetting…" : "Reset this month"}
+            onClick={handleReset}
+            danger
+          />
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 20px 28px" }}>
+        <form action={signOutAction}>
+          <button type="submit" className="btn btn-soft btn-block">
+            Sign out
+          </button>
+        </form>
+      </div>
+
+      <EditProfileSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        profile={profile}
+      />
+    </>
+  )
+}
+
+export function MoreScreen({
+  state,
+  dispatch,
+  currency,
+  salary,
+  profile,
+}: {
+  state: AppState
+  dispatch: (a: Action) => void
+  currency: string
+  salary: number
+  profile: UserProfile
+}) {
+  const [tab, setTab] = useState<"setup" | "settings">("setup")
+
+  return (
+    <>
+      <div style={{ padding: "8px 20px 0" }}>
+        <div
+          className="tiny"
+          style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+        >
+          More
+        </div>
+        <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>
+          Tune your <span className="italic">setup.</span>
+        </div>
+      </div>
+      <div style={{ padding: "12px 20px 0" }}>
+        <div
+          className="seg"
+          style={{ width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr" }}
+        >
+          <button className={tab === "setup" ? "on" : ""} onClick={() => setTab("setup")}>
+            Pots & targets
+          </button>
+          <button
+            className={tab === "settings" ? "on" : ""}
+            onClick={() => setTab("settings")}
+          >
+            Settings
+          </button>
+        </div>
+      </div>
+
+      {tab === "setup" && (
+        <SetupPanel
+          state={state}
+          dispatch={dispatch}
+          currency={currency}
+          salary={salary}
+        />
+      )}
+      {tab === "settings" && (
+        <SettingsPanel currency={currency} salary={salary} profile={profile} />
+      )}
+    </>
+  )
+}
