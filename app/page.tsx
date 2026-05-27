@@ -23,7 +23,7 @@ export default async function Page() {
   }
   const userId = session.user.id
 
-  const [user, buckets, ledger, insights] = await Promise.all([
+  const [user, buckets, ledger, insights, pushCount] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -38,6 +38,9 @@ export default async function Page() {
         paydayRemindersOn: true,
         paydayDayOfMonth: true,
         appLockEnabled: true,
+        pushPaydayOn: true,
+        pushBucketHitOn: true,
+        pushWrapOn: true,
       },
     }),
     prisma.bucket.findMany({
@@ -50,6 +53,7 @@ export default async function Page() {
       take: 200,
     }),
     loadInsights(userId),
+    prisma.pushSubscription.count({ where: { userId } }),
   ])
 
   const profile: UserProfile = {
@@ -63,6 +67,10 @@ export default async function Page() {
     paydayRemindersOn: user.paydayRemindersOn,
     paydayDayOfMonth: user.paydayDayOfMonth,
     appLockEnabled: user.appLockEnabled,
+    pushPaydayOn: user.pushPaydayOn,
+    pushBucketHitOn: user.pushBucketHitOn,
+    pushWrapOn: user.pushWrapOn,
+    hasPushSubscription: pushCount > 0,
   }
 
   const bucketsClient: Bucket[] = buckets.map((b) => ({

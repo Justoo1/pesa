@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import { sendPushToUser } from "@/lib/push"
 
 const disburseSchema = z.object({
   bucketId: z.string().min(1),
@@ -31,11 +32,11 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   const [bucket, user, savingsBucket] = await Promise.all([
     prisma.bucket.findFirst({
       where: { id: bucketId, userId },
-      select: { id: true },
+      select: { id: true, name: true, target: true, allocated: true },
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { roundUpsEnabled: true },
+      select: { roundUpsEnabled: true, pushBucketHitOn: true },
     }),
     prisma.bucket.findFirst({
       where: { userId, kind: "future", archivedAt: null },
@@ -89,6 +90,27 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   }
 
   await prisma.$transaction(ops)
+
+  // Bucket target reached: fire push if we crossed from below-target to
+  // at-or-above-target on this disbursement. Only current-month disbursements
+  // trigger — backdated edits shouldn't fire celebrations now.
+  const crossedTarget =
+    allowRoundUp &&
+    bucket.target > 0 &&
+    bucket.allocated < bucket.target &&
+    bucket.allocated + amount >= bucket.target
+  if (crossedTarget && user?.pushBucketHitOn) {
+    try {
+      await sendPushToUser(userId, {
+        title: `${bucket.name} is full 🎉`,
+        body: "Target reached.",
+        url: "/",
+        tag: `bucket-${bucket.id}`,
+      })
+    } catch (e) {
+      console.error("bucket-hit push error", e)
+    }
+  }
 
   revalidatePath("/")
   if (occurredAt) {

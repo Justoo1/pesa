@@ -20,6 +20,14 @@ import { reorderBuckets } from "@/app/actions/buckets"
 import { useRef } from "react"
 import type { Bucket } from "../types"
 
+function notificationsSummary(profile: UserProfile): string | undefined {
+  const parts: string[] = []
+  if (profile.hasPushSubscription) parts.push("Push")
+  if (profile.paydayRemindersOn) parts.push("Email")
+  if (parts.length === 0) return "Off"
+  return parts.join(" + ")
+}
+
 function SettingRow({
   icon,
   label,
@@ -28,6 +36,7 @@ function SettingRow({
   off,
   onClick,
   danger,
+  nav,
 }: {
   icon: IconName
   label: string
@@ -36,12 +45,16 @@ function SettingRow({
   off?: boolean
   onClick?: () => void
   danger?: boolean
+  nav?: boolean
 }) {
   // Toggle rows still need to be clickable — the bug was treating them as
   // non-interactive, which dropped the onClick on the floor.
-  const interactive = !!onClick
-  const Wrapper = interactive ? "button" : "div"
-  const wrapperProps = interactive
+  const isButton = !!onClick
+  // Show the chevron whenever this row leads somewhere — either via its own
+  // onClick or because a wrapping <a>/<Link> handles the navigation.
+  const showChevron = isButton || !!nav
+  const Wrapper = isButton ? "button" : "div"
+  const wrapperProps = isButton
     ? {
         onClick,
         type: "button" as const,
@@ -99,7 +112,7 @@ function SettingRow({
               {value}
             </span>
           )}
-          {interactive && <Icon name="chevron" size={14} />}
+          {showChevron && <Icon name="chevron" size={14} />}
         </div>
       )}
     </Wrapper>
@@ -407,11 +420,8 @@ function SettingsPanel({
           />
           <SettingRow
             icon="info"
-            label={
-              profile.paydayRemindersOn && profile.paydayDayOfMonth
-                ? `Payday reminders · day ${profile.paydayDayOfMonth}`
-                : "Remind me on payday"
-            }
+            label="Notifications"
+            value={notificationsSummary(profile)}
             onClick={() => setPaydayOpen(true)}
           />
           <SettingRow
@@ -430,10 +440,10 @@ function SettingsPanel({
             download
             style={{ textDecoration: "none", color: "inherit", display: "block" }}
           >
-            <SettingRow icon="share" label="Export this month" value="CSV" onClick={() => {}} />
+            <SettingRow icon="share" label="Export this month" value="CSV" nav />
           </a>
           <Link href="/months" style={{ textDecoration: "none", color: "inherit" }}>
-            <SettingRow icon="history" label="View past months" onClick={() => {}} />
+            <SettingRow icon="history" label="View past months" nav />
           </Link>
           <SettingRow
             icon="piggy"
@@ -484,6 +494,10 @@ function SettingsPanel({
         onClose={() => setPaydayOpen(false)}
         initialEnabled={profile.paydayRemindersOn}
         initialDay={profile.paydayDayOfMonth}
+        initialPushPayday={profile.pushPaydayOn}
+        initialPushBucketHit={profile.pushBucketHitOn}
+        initialPushWrap={profile.pushWrapOn}
+        initialHasSubscription={profile.hasPushSubscription}
       />
       <AppLockSheet
         open={lockOpen}

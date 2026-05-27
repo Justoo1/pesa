@@ -65,6 +65,10 @@ export type UserProfile = {
   paydayRemindersOn: boolean
   paydayDayOfMonth: number | null
   appLockEnabled: boolean
+  pushPaydayOn: boolean
+  pushBucketHitOn: boolean
+  pushWrapOn: boolean
+  hasPushSubscription: boolean
 }
 
 export type WrapHighlight = {

@@ -57,6 +57,26 @@ export async function setPaydayPrefs(input: z.infer<typeof paydaySchema>) {
   revalidatePath("/")
 }
 
+const pushPrefsSchema = z.object({
+  payday: z.boolean().optional(),
+  bucketHit: z.boolean().optional(),
+  wrap: z.boolean().optional(),
+})
+
+export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
+  const userId = await requireUserId()
+  const parsed = pushPrefsSchema.parse(input)
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(parsed.payday !== undefined && { pushPaydayOn: parsed.payday }),
+      ...(parsed.bucketHit !== undefined && { pushBucketHitOn: parsed.bucketHit }),
+      ...(parsed.wrap !== undefined && { pushWrapOn: parsed.wrap }),
+    },
+  })
+  revalidatePath("/")
+}
+
 const pinSchema = z.object({ pin: z.string().regex(/^\d{4,8}$/) })
 
 export async function setAppLock(input: { pin: string }) {
