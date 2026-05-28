@@ -7,11 +7,24 @@ type SendEmailInput = {
 
 export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
   const apiKey = process.env.AUTH_RESEND_KEY
-  if (!apiKey) {
-    console.warn("AUTH_RESEND_KEY missing — would have emailed", to)
+  const from = process.env.AUTH_EMAIL_FROM?.trim()
+  const isProd = process.env.NODE_ENV === "production"
+
+  if (!apiKey || !from) {
+    // In production a missing key or sender is a config error — shipping
+    // password resets and payday nudges from resend.dev would look broken.
+    // In dev / preview we degrade to a log so local flows aren't blocked.
+    if (isProd) {
+      throw new Error(
+        "Email not configured: AUTH_RESEND_KEY and AUTH_EMAIL_FROM are required.",
+      )
+    }
+    console.warn(
+      "Email not configured (AUTH_RESEND_KEY or AUTH_EMAIL_FROM missing) — would have emailed",
+      to,
+    )
     return
   }
-  const from = process.env.AUTH_EMAIL_FROM?.trim() || "Pesa <onboarding@resend.dev>"
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

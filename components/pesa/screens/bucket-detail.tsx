@@ -36,6 +36,19 @@ export function BucketDetailScreen({
   const pct = bucket.target > 0 ? (bucket.allocated / bucket.target) * 100 : 0
   const remaining = Math.max(0, bucket.target - bucket.allocated)
 
+  const dueBadge = (() => {
+    if (bucket.kind !== "bills" || !bucket.dueDayOfMonth) return null
+    if (bucket.allocated >= bucket.target) {
+      return { text: `Paid · was due day ${bucket.dueDayOfMonth}`, tone: "ok" as const }
+    }
+    const today = now.getDate()
+    const diff = bucket.dueDayOfMonth - today
+    if (diff < 0) return { text: `Overdue by ${-diff}d`, tone: "warn" as const }
+    if (diff === 0) return { text: "Due today", tone: "warn" as const }
+    if (diff <= 3) return { text: `Due in ${diff}d`, tone: "warn" as const }
+    return { text: `Due day ${bucket.dueDayOfMonth}`, tone: "muted" as const }
+  })()
+
   const openEdit = (focus?: "target") => {
     setEditFocus(focus)
     setEditOpen(true)
@@ -55,10 +68,45 @@ export function BucketDetailScreen({
           <Icon name="back" size={18} />
         </button>
         <div
-          className="tiny"
-          style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
         >
-          Pot · {bucket.kind}
+          <div
+            className="tiny"
+            style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+          >
+            Pot · {bucket.kind}
+          </div>
+          {dueBadge && (
+            <span
+              className="tiny"
+              style={{
+                padding: "2px 8px",
+                borderRadius: 999,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                background:
+                  dueBadge.tone === "warn"
+                    ? "var(--clay-soft)"
+                    : dueBadge.tone === "ok"
+                      ? "var(--green-tint)"
+                      : "rgba(33,26,18,0.06)",
+                color:
+                  dueBadge.tone === "warn"
+                    ? "var(--clay-deep)"
+                    : dueBadge.tone === "ok"
+                      ? "var(--green-deep)"
+                      : "var(--ink-2)",
+              }}
+            >
+              {dueBadge.text}
+            </span>
+          )}
         </div>
         <button
           className="btn btn-ghost btn-icon"

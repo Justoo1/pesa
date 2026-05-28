@@ -10,12 +10,13 @@ import { AddPotSheet } from "./add-pot"
 import { EditPotSheet } from "./edit-pot"
 import { EditProfileSheet } from "./edit-profile"
 import { PaydayPrefsSheet } from "./payday-prefs"
+import { RoundUpsSheet } from "./round-ups"
 import { AppLockSheet } from "./app-lock"
 import { AboutSheet } from "./about"
 import { ArchivedPotsSheet } from "./archived-pots"
 import { DeleteAccountSheet } from "./delete-account"
 import { signOutAction } from "@/app/actions/auth"
-import { resetMonth, toggleRoundUps } from "@/app/actions/settings"
+import { resetMonth } from "@/app/actions/settings"
 import { reorderBuckets } from "@/app/actions/buckets"
 import { useRef } from "react"
 import type { Bucket } from "../types"
@@ -343,7 +344,7 @@ function SettingsPanel({
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [resetting, startResetting] = useTransition()
-  const [, startToggle] = useTransition()
+  const [roundUpsOpen, setRoundUpsOpen] = useState(false)
 
   const openEdit = () => setEditOpen(true)
 
@@ -364,16 +365,6 @@ function SettingsPanel({
     })
   }
 
-  const handleToggleRoundUps = () => {
-    startToggle(async () => {
-      try {
-        await toggleRoundUps(!profile.roundUpsEnabled)
-        router.refresh()
-      } catch (e) {
-        window.alert(e instanceof Error ? e.message : "Could not save.")
-      }
-    })
-  }
 
   return (
     <>
@@ -414,9 +405,14 @@ function SettingsPanel({
           <SettingRow
             icon="spark"
             label="Round-ups to Savings"
-            toggle
-            off={!profile.roundUpsEnabled}
-            onClick={handleToggleRoundUps}
+            value={
+              !profile.hasSavingsBucket
+                ? "Needs Future pot"
+                : profile.roundUpsEnabled
+                  ? `On · ${profile.currency} ${profile.roundUpStep}`
+                  : "Off"
+            }
+            onClick={() => setRoundUpsOpen(true)}
           />
           <SettingRow
             icon="info"
@@ -498,6 +494,14 @@ function SettingsPanel({
         initialPushBucketHit={profile.pushBucketHitOn}
         initialPushWrap={profile.pushWrapOn}
         initialHasSubscription={profile.hasPushSubscription}
+      />
+      <RoundUpsSheet
+        open={roundUpsOpen}
+        onClose={() => setRoundUpsOpen(false)}
+        initialEnabled={profile.roundUpsEnabled}
+        initialStep={profile.roundUpStep}
+        currency={profile.currency}
+        hasSavingsBucket={profile.hasSavingsBucket}
       />
       <AppLockSheet
         open={lockOpen}

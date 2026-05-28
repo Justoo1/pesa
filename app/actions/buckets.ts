@@ -14,6 +14,7 @@ const createSchema = z.object({
   color: colorEnum,
   icon: z.string().min(1).max(20),
   kind: kindEnum,
+  dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
 })
 
 export async function createBucket(input: z.infer<typeof createSchema>) {
@@ -25,6 +26,9 @@ export async function createBucket(input: z.infer<typeof createSchema>) {
   const bucket = await prisma.bucket.create({
     data: {
       ...data,
+      // Only "bills" pots get a due day; if another kind is set with a value
+      // we ignore it to keep the model consistent.
+      dueDayOfMonth: data.kind === "bills" ? (data.dueDayOfMonth ?? null) : null,
       allocated: 0,
       priority: count + 1,
       userId,
@@ -122,10 +126,11 @@ export async function deleteBucket(input: z.infer<typeof archiveSchema>) {
 const updateSchema = z.object({
   bucketId: z.string().min(1),
   name: z.string().min(1).max(40),
-  target: z.number().int().nonnegative(),
+  target: z.number().int().positive(),
   color: colorEnum,
   icon: z.string().min(1).max(20),
   kind: kindEnum,
+  dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
 })
 
 export async function updateBucket(input: z.infer<typeof updateSchema>) {
@@ -133,7 +138,10 @@ export async function updateBucket(input: z.infer<typeof updateSchema>) {
   const { bucketId, ...rest } = updateSchema.parse(input)
   await prisma.bucket.updateMany({
     where: { id: bucketId, userId },
-    data: rest,
+    data: {
+      ...rest,
+      dueDayOfMonth: rest.kind === "bills" ? (rest.dueDayOfMonth ?? null) : null,
+    },
   })
   revalidatePath("/")
 }

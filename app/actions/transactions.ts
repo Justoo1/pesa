@@ -14,8 +14,6 @@ const disburseSchema = z.object({
   occurredAt: z.coerce.date().optional(),
 })
 
-const ROUND_UP_STEP = 50
-
 function isInCurrentCalendarMonth(d: Date) {
   const now = new Date()
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
@@ -36,7 +34,11 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { roundUpsEnabled: true, pushBucketHitOn: true },
+      select: {
+        roundUpsEnabled: true,
+        roundUpStep: true,
+        pushBucketHitOn: true,
+      },
     }),
     prisma.bucket.findFirst({
       where: { userId, kind: "future", archivedAt: null },
@@ -67,9 +69,16 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   // pot (typically "Savings"). Skip when the target pot is the savings pot
   // itself (can't round into yourself).
   let roundUp = 0
-  if (allowRoundUp && user?.roundUpsEnabled && savingsBucket && savingsBucket.id !== bucketId) {
-    const remainder = amount % ROUND_UP_STEP
-    roundUp = remainder === 0 ? 0 : ROUND_UP_STEP - remainder
+  const step = user?.roundUpStep ?? 50
+  if (
+    allowRoundUp &&
+    user?.roundUpsEnabled &&
+    step > 0 &&
+    savingsBucket &&
+    savingsBucket.id !== bucketId
+  ) {
+    const remainder = amount % step
+    roundUp = remainder === 0 ? 0 : step - remainder
     if (roundUp > 0) {
       ops.push(
         prisma.transaction.create({

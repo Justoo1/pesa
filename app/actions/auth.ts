@@ -5,6 +5,7 @@ import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { AuthError } from "next-auth"
 import { prisma } from "@/lib/db"
+import { sendEmail } from "@/lib/email"
 import { seedNewUser } from "@/lib/seed"
 import { signIn, signOut } from "@/auth"
 
@@ -100,33 +101,14 @@ const RESET_TOKEN_BYTES = 32
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
 
 async function sendResetEmail(email: string, resetUrl: string) {
-  const apiKey = process.env.AUTH_RESEND_KEY
-  if (!apiKey) {
-    console.warn("AUTH_RESEND_KEY missing — printing reset link:", resetUrl)
-    return
-  }
-  const from =
-    process.env.AUTH_EMAIL_FROM?.trim() || "Pesa <onboarding@resend.dev>"
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Reset your Pesa password",
-      html: `<p>You requested a password reset for Pesa.</p>
+  await sendEmail({
+    to: email,
+    subject: "Reset your Pesa password",
+    html: `<p>You requested a password reset for Pesa.</p>
 <p><a href="${resetUrl}">Click here to choose a new password.</a></p>
 <p>The link expires in 1 hour. If you didn't request this, ignore this email.</p>`,
-      text: `Reset your Pesa password: ${resetUrl}\n\nThe link expires in 1 hour.`,
-    }),
+    text: `Reset your Pesa password: ${resetUrl}\n\nThe link expires in 1 hour.`,
   })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Resend failed: ${res.status} ${body}`)
-  }
 }
 
 export async function requestPasswordReset(

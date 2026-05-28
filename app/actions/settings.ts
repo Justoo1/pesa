@@ -5,6 +5,7 @@ import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import { sendPushToUser } from "@/lib/push"
 import { signOut } from "@/auth"
 
 const profileSchema = z.object({
@@ -30,13 +31,26 @@ export async function resetMonth() {
   revalidatePath("/")
 }
 
-export async function toggleRoundUps(enabled: boolean) {
+const roundUpsSchema = z.object({
+  enabled: z.boolean().optional(),
+  step: z.number().int().min(1).max(10000).optional(),
+})
+
+export async function setRoundUpsPrefs(input: z.infer<typeof roundUpsSchema>) {
   const userId = await requireUserId()
+  const parsed = roundUpsSchema.parse(input)
   await prisma.user.update({
     where: { id: userId },
-    data: { roundUpsEnabled: !!enabled },
+    data: {
+      ...(parsed.enabled !== undefined && { roundUpsEnabled: parsed.enabled }),
+      ...(parsed.step !== undefined && { roundUpStep: parsed.step }),
+    },
   })
   revalidatePath("/")
+}
+
+export async function toggleRoundUps(enabled: boolean) {
+  return setRoundUpsPrefs({ enabled: !!enabled })
 }
 
 const paydaySchema = z.object({
@@ -75,6 +89,20 @@ export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
     },
   })
   revalidatePath("/")
+}
+
+export async function sendTestPush() {
+  const userId = await requireUserId()
+  const result = await sendPushToUser(userId, {
+    title: "Pesa test",
+    body: "Push is wired up. Tap to open.",
+    url: "/",
+    tag: "test",
+  })
+  if (result.sent === 0) {
+    throw new Error("No active subscriptions on this account.")
+  }
+  return result
 }
 
 const pinSchema = z.object({ pin: z.string().regex(/^\d{4,8}$/) })

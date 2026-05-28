@@ -31,9 +31,15 @@ function AddPotContent({
   const [icon, setIcon] = useState<IconName>("piggy")
   const [color, setColor] = useState<BucketColor>("green")
   const [kind, setKind] = useState<BucketKind>("future")
+  const [dueDay, setDueDay] = useState<string>("")
 
   const targetNum = parseInt(target.replace(/[^0-9]/g, ""), 10) || 0
-  const canSubmit = name.trim().length > 0 && targetNum > 0
+  const dueDayNum = parseInt(dueDay.replace(/[^0-9]/g, ""), 10)
+  const dueDayValid =
+    kind !== "bills" ||
+    dueDay.length === 0 ||
+    (Number.isFinite(dueDayNum) && dueDayNum >= 1 && dueDayNum <= 31)
+  const canSubmit = name.trim().length > 0 && targetNum > 0 && dueDayValid
 
   const submit = () => {
     if (!canSubmit) return
@@ -44,6 +50,8 @@ function AddPotContent({
       color,
       icon,
       kind,
+      dueDayOfMonth:
+        kind === "bills" && Number.isFinite(dueDayNum) ? dueDayNum : null,
     })
     onClose()
   }
@@ -101,6 +109,28 @@ function AddPotContent({
         <IconPicker value={icon} onChange={setIcon} />
         <ColorPicker value={color} onChange={setColor} />
         <KindPicker value={kind} onChange={setKind} />
+
+        {kind === "bills" && (
+          <div>
+            <div className="label" style={{ marginBottom: 6 }}>
+              Due day of month (optional)
+            </div>
+            <input
+              className="input num"
+              inputMode="numeric"
+              placeholder="e.g. 15"
+              value={dueDay}
+              onChange={(e) => setDueDay(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            <div
+              className="tiny"
+              style={{ marginTop: 6, color: "var(--ink-3)" }}
+            >
+              Used to flag the pot as overdue if it&apos;s not filled by this
+              day.
+            </div>
+          </div>
+        )}
       </div>
 
       <button

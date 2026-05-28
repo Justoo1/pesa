@@ -23,7 +23,7 @@ export default async function Page() {
   }
   const userId = session.user.id
 
-  const [user, buckets, ledger, insights, pushCount] = await Promise.all([
+  const [user, buckets, ledger, insights, pushCount, savingsCount] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -35,6 +35,7 @@ export default async function Page() {
         currency: true,
         monthLabel: true,
         roundUpsEnabled: true,
+        roundUpStep: true,
         paydayRemindersOn: true,
         paydayDayOfMonth: true,
         appLockEnabled: true,
@@ -54,6 +55,9 @@ export default async function Page() {
     }),
     loadInsights(userId),
     prisma.pushSubscription.count({ where: { userId } }),
+    prisma.bucket.count({
+      where: { userId, archivedAt: null, kind: "future" },
+    }),
   ])
 
   const profile: UserProfile = {
@@ -64,6 +68,7 @@ export default async function Page() {
     currency: user.currency,
     monthLabel: user.monthLabel,
     roundUpsEnabled: user.roundUpsEnabled,
+    roundUpStep: user.roundUpStep,
     paydayRemindersOn: user.paydayRemindersOn,
     paydayDayOfMonth: user.paydayDayOfMonth,
     appLockEnabled: user.appLockEnabled,
@@ -71,6 +76,7 @@ export default async function Page() {
     pushBucketHitOn: user.pushBucketHitOn,
     pushWrapOn: user.pushWrapOn,
     hasPushSubscription: pushCount > 0,
+    hasSavingsBucket: savingsCount > 0,
   }
 
   const bucketsClient: Bucket[] = buckets.map((b) => ({
@@ -82,6 +88,7 @@ export default async function Page() {
     icon: b.icon as IconName,
     priority: b.priority,
     kind: b.kind as BucketKind,
+    dueDayOfMonth: b.dueDayOfMonth,
   }))
 
   const ledgerClient: Transaction[] = ledger.map((t) => ({

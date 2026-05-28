@@ -75,6 +75,7 @@ function appReducer(state: AppState, action: Action): AppState {
             icon: action.icon,
             priority,
             kind: action.kind,
+            dueDayOfMonth: action.dueDayOfMonth ?? null,
           },
         ],
       }
@@ -164,6 +165,7 @@ export function PesaApp({
               color: action.color,
               icon: action.icon,
               kind: action.kind,
+              dueDayOfMonth: action.dueDayOfMonth ?? null,
             }),
           )
           break

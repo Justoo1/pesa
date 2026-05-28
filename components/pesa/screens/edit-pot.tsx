@@ -44,11 +44,19 @@ function EditPotContent({
   const [icon, setIcon] = useState<IconName>(bucket.icon)
   const [color, setColor] = useState<BucketColor>(bucket.color)
   const [kind, setKind] = useState<BucketKind>(bucket.kind)
+  const [dueDay, setDueDay] = useState<string>(
+    bucket.dueDayOfMonth ? String(bucket.dueDayOfMonth) : "",
+  )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const targetNum = parseInt(target.replace(/[^0-9]/g, ""), 10) || 0
-  const canSubmit = name.trim().length > 0 && targetNum >= 0
+  const dueDayNum = parseInt(dueDay.replace(/[^0-9]/g, ""), 10)
+  const dueDayValid =
+    kind !== "bills" ||
+    dueDay.length === 0 ||
+    (Number.isFinite(dueDayNum) && dueDayNum >= 1 && dueDayNum <= 31)
+  const canSubmit = name.trim().length > 0 && targetNum > 0 && dueDayValid
 
   const submit = () => {
     if (!canSubmit) return
@@ -62,6 +70,8 @@ function EditPotContent({
           color,
           icon,
           kind,
+          dueDayOfMonth:
+            kind === "bills" && Number.isFinite(dueDayNum) ? dueDayNum : null,
         })
         router.refresh()
         onClose()
@@ -142,6 +152,27 @@ function EditPotContent({
         <IconPicker value={icon} onChange={setIcon} />
         <ColorPicker value={color} onChange={setColor} />
         <KindPicker value={kind} onChange={setKind} />
+
+        {kind === "bills" && (
+          <div>
+            <div className="label" style={{ marginBottom: 6 }}>
+              Due day of month (optional)
+            </div>
+            <input
+              className="input num"
+              inputMode="numeric"
+              placeholder="e.g. 15"
+              value={dueDay}
+              onChange={(e) => setDueDay(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            <div
+              className="tiny"
+              style={{ marginTop: 6, color: "var(--ink-3)" }}
+            >
+              The pot is flagged overdue if it isn&apos;t filled by this day.
+            </div>
+          </div>
+        )}
 
         {error && (
           <div

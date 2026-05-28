@@ -13,8 +13,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     ...authConfig.providers,
     Resend({
-      from:
-        process.env.AUTH_EMAIL_FROM?.trim() || "Pesa <onboarding@resend.dev>",
+      from: (() => {
+        const from = process.env.AUTH_EMAIL_FROM?.trim()
+        if (!from) {
+          if (process.env.NODE_ENV === "production") {
+            throw new Error("AUTH_EMAIL_FROM is required in production")
+          }
+          return "Pesa <onboarding@resend.dev>"
+        }
+        return from
+      })(),
     }),
     Credentials({
       credentials: {

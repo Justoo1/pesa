@@ -28,6 +28,7 @@ model User {
 
   // pesa settings flags
   roundUpsEnabled   Boolean @default(false)
+  roundUpStep       Int     @default(50)
   paydayRemindersOn Boolean @default(false)
   paydayDayOfMonth  Int?
   appLockEnabled    Boolean @default(false)
@@ -86,17 +87,18 @@ model VerificationToken {
 // ---------- Pesa domain ----------
 
 model Bucket {
-  id         String    @id @default(cuid())
-  userId     String
-  name       String
-  target     Int
-  allocated  Int       @default(0)
-  color      String
-  icon       String
-  priority   Int
-  kind       String
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  target         Int
+  allocated      Int       @default(0)
+  color          String
+  icon           String
+  priority       Int
+  kind           String
+  dueDayOfMonth  Int?
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
 
   user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   txns Transaction[]

@@ -58,6 +58,8 @@ export function InsightsScreen({
             ? "var(--green-soft)"
             : "var(--green)"
 
+  const noTxnsThisMonth = currMonth.total === 0
+
   return (
     <>
       <div style={{ padding: "8px 20px 0" }}>
@@ -68,9 +70,34 @@ export function InsightsScreen({
           Insights
         </div>
         <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>
-          You&apos;re <span className="italic">growing.</span>
+          {noTxnsThisMonth && noData ? (
+            <>Your <span className="italic">first month.</span></>
+          ) : (
+            <>You&apos;re <span className="italic">growing.</span></>
+          )}
         </div>
       </div>
+
+      {noTxnsThisMonth && noData && (
+        <div style={{ padding: "16px 20px 0" }}>
+          <div
+            className="card"
+            style={{
+              padding: 16,
+              background: "var(--green-tint)",
+              color: "var(--green-deep)",
+            }}
+          >
+            <div className="serif" style={{ fontSize: 20, lineHeight: 1.1 }}>
+              Disburse a transfer to start the chart.
+            </div>
+            <div className="small" style={{ marginTop: 6 }}>
+              Move some salary into a pot on Home. Insights, trends and the
+              wrap fill in as the month unfolds.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: "16px 20px 0" }}>
         <div

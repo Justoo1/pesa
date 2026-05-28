@@ -4,7 +4,11 @@ import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { Sheet } from "../ui"
-import { setPaydayPrefs, setPushPrefs } from "@/app/actions/settings"
+import {
+  sendTestPush,
+  setPaydayPrefs,
+  setPushPrefs,
+} from "@/app/actions/settings"
 import {
   getSubscription,
   isPushSupported,
@@ -50,6 +54,8 @@ function NotificationsContent({
   const [supported] = useState(() => isPushSupported())
   const [pushBusy, setPushBusy] = useState(false)
 
+  const [testNote, setTestNote] = useState<string | null>(null)
+
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -70,6 +76,21 @@ function NotificationsContent({
       router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not enable push.")
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
+  const handleSendTest = async () => {
+    setError(null)
+    setTestNote(null)
+    setPushBusy(true)
+    try {
+      await sendTestPush()
+      setTestNote("Sent — check your notification tray.")
+      setTimeout(() => setTestNote(null), 4000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not send test push.")
     } finally {
       setPushBusy(false)
     }
@@ -161,25 +182,37 @@ function NotificationsContent({
             </Note>
           ) : hasSub ? (
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "12px 14px",
-                background: "var(--bg-card)",
-                borderRadius: 14,
-                border: "1px solid var(--line)",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: 8 }}
             >
-              <span style={{ fontWeight: 600, color: "var(--green)" }}>
-                ✓ Push enabled on this device
-              </span>
-              <button
-                className="btn btn-ghost"
-                disabled={pushBusy}
-                onClick={handleDisablePush}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 14px",
+                  background: "var(--bg-card)",
+                  borderRadius: 14,
+                  border: "1px solid var(--line)",
+                }}
               >
-                Unsubscribe
+                <span style={{ fontWeight: 600, color: "var(--green)" }}>
+                  ✓ Push enabled on this device
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  disabled={pushBusy}
+                  onClick={handleDisablePush}
+                >
+                  Unsubscribe
+                </button>
+              </div>
+              <button
+                className="btn btn-soft btn-block"
+                disabled={pushBusy}
+                onClick={handleSendTest}
+              >
+                <Icon name="send" size={14} />{" "}
+                {testNote ?? "Send a test notification"}
               </button>
             </div>
           ) : (
@@ -252,6 +285,10 @@ function NotificationsContent({
                   else setDay(Math.min(31, Math.max(1, n)))
                 }}
               />
+              <Note>
+                Sent around 09:00 UTC. If your timezone is far from UTC the
+                reminder may land the day before or after.
+              </Note>
             </div>
           )}
         </Section>

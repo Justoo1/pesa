@@ -42,6 +42,7 @@ export type Bucket = {
   icon: IconName
   priority: number
   kind: BucketKind
+  dueDayOfMonth: number | null
 }
 
 export type Transaction = {
@@ -62,6 +63,7 @@ export type UserProfile = {
   currency: string
   monthLabel: string
   roundUpsEnabled: boolean
+  roundUpStep: number
   paydayRemindersOn: boolean
   paydayDayOfMonth: number | null
   appLockEnabled: boolean
@@ -69,6 +71,7 @@ export type UserProfile = {
   pushBucketHitOn: boolean
   pushWrapOn: boolean
   hasPushSubscription: boolean
+  hasSavingsBucket: boolean
 }
 
 export type WrapHighlight = {
@@ -110,4 +113,5 @@ export type Action =
       color: BucketColor
       icon: IconName
       kind: BucketKind
+      dueDayOfMonth?: number | null
     }

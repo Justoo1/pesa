@@ -68,6 +68,15 @@ export function WrapScreen({
   monthLabel: string
   months: MonthRow[]
 }) {
+  const today = new Date()
+  const lastDayOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0,
+  ).getDate()
+  const isFinalDay = today.getDate() === lastDayOfMonth
+  const wrapLabel = isFinalDay ? "The Wrap" : "Month so far"
+
   const totalAllocated = state.buckets.reduce((s, b) => s + b.allocated, 0)
   const saved = state.buckets
     .filter((b) => b.kind === "future")
@@ -190,7 +199,7 @@ export function WrapScreen({
           className="tiny"
           style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
         >
-          {monthLabel} · The Wrap
+          {monthLabel} · {wrapLabel}
         </div>
         <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>
           Your month, <span className="italic">in flow.</span>

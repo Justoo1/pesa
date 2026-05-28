@@ -1,16 +1,16 @@
 import type { Bucket } from "./types"
 
 export const initialBuckets: Bucket[] = [
-  { id: "rent",     name: "Rent",          target: 3500, allocated: 3500, color: "clay",  icon: "home",   priority: 1,  kind: "essential" },
-  { id: "savings",  name: "Savings",       target: 2000, allocated: 1500, color: "green", icon: "piggy",  priority: 2,  kind: "future" },
-  { id: "mom",      name: "Mom",           target: 1200, allocated: 1200, color: "rose",  icon: "heart",  priority: 3,  kind: "people" },
-  { id: "sip",      name: "SIP",           target: 1500, allocated: 800,  color: "gold",  icon: "leaf",   priority: 4,  kind: "future" },
-  { id: "emerg",    name: "Emergency",     target: 800,  allocated: 400,  color: "sage",  icon: "shield", priority: 5,  kind: "future" },
-  { id: "tithe",    name: "Tithe",         target: 1400, allocated: 1400, color: "gold",  icon: "sun",    priority: 6,  kind: "give" },
-  { id: "house",    name: "House keep",    target: 900,  allocated: 600,  color: "clay",  icon: "broom",  priority: 7,  kind: "essential" },
-  { id: "internet", name: "Internet",      target: 280,  allocated: 280,  color: "sage",  icon: "wifi",   priority: 8,  kind: "bills" },
-  { id: "gas",      name: "Gas",           target: 220,  allocated: 0,    color: "rose",  icon: "flame",  priority: 9,  kind: "bills" },
-  { id: "light",    name: "Light bill",    target: 400,  allocated: 0,    color: "gold",  icon: "bulb",   priority: 10, kind: "bills" },
+  { id: "rent",     name: "Rent",          target: 3500, allocated: 3500, color: "clay",  icon: "home",   priority: 1,  kind: "essential", dueDayOfMonth: null },
+  { id: "savings",  name: "Savings",       target: 2000, allocated: 1500, color: "green", icon: "piggy",  priority: 2,  kind: "future",    dueDayOfMonth: null },
+  { id: "mom",      name: "Mom",           target: 1200, allocated: 1200, color: "rose",  icon: "heart",  priority: 3,  kind: "people",    dueDayOfMonth: null },
+  { id: "sip",      name: "SIP",           target: 1500, allocated: 800,  color: "gold",  icon: "leaf",   priority: 4,  kind: "future",    dueDayOfMonth: null },
+  { id: "emerg",    name: "Emergency",     target: 800,  allocated: 400,  color: "sage",  icon: "shield", priority: 5,  kind: "future",    dueDayOfMonth: null },
+  { id: "tithe",    name: "Tithe",         target: 1400, allocated: 1400, color: "gold",  icon: "sun",    priority: 6,  kind: "give",      dueDayOfMonth: null },
+  { id: "house",    name: "House keep",    target: 900,  allocated: 600,  color: "clay",  icon: "broom",  priority: 7,  kind: "essential", dueDayOfMonth: null },
+  { id: "internet", name: "Internet",      target: 280,  allocated: 280,  color: "sage",  icon: "wifi",   priority: 8,  kind: "bills",     dueDayOfMonth: 5 },
+  { id: "gas",      name: "Gas",           target: 220,  allocated: 0,    color: "rose",  icon: "flame",  priority: 9,  kind: "bills",     dueDayOfMonth: 12 },
+  { id: "light",    name: "Light bill",    target: 400,  allocated: 0,    color: "gold",  icon: "bulb",   priority: 10, kind: "bills",     dueDayOfMonth: 20 },
 ]
 
 export type SeedLedgerEntry = {
