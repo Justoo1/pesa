@@ -135,7 +135,10 @@ export default async function Page() {
         <div className="device">
           <div className="device-screen">
             <div className="statusbar">
-              <Clock />
+              <span className="statusbar-clock">
+                <Clock />
+              </span>
+              <span className="statusbar-slogan">Every cedi, a place to land.</span>
               <span className="statusbar-icons">
                 <LockButton appLockEnabled={profile.appLockEnabled} />
               </span>

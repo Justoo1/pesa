@@ -1,10 +1,19 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
 import { BucketCard, Counter, MiniStat, type TabId } from "../ui"
 import type { AppState } from "../types"
 import { signOutAction } from "@/app/actions/auth"
+
+function greetingFor(hour: number): string {
+  if (hour < 5) return "Up late"
+  if (hour < 12) return "Morning"
+  if (hour < 17) return "Afternoon"
+  if (hour < 22) return "Evening"
+  return "Night"
+}
 
 export function HomeScreen({
   state,
@@ -29,6 +38,16 @@ export function HomeScreen({
   const remaining = salary - totalAllocated
   const pctDone = salary > 0 ? (totalAllocated / salary) * 100 : 0
   const bucketsFull = buckets.filter((b) => b.allocated >= b.target).length
+
+  const [greeting, setGreeting] = useState<string | null>(null)
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const tick = () => setGreeting(greetingFor(new Date().getHours()))
+    tick()
+    const id = setInterval(tick, 60_000)
+    return () => clearInterval(id)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [])
 
   return (
     <>
@@ -56,7 +75,7 @@ export function HomeScreen({
             className="serif"
             style={{ fontSize: 30, lineHeight: 1.05, color: "var(--ink)" }}
           >
-            Morning,&nbsp;<span className="italic">{userName}.</span>
+            <span suppressHydrationWarning>{greeting ?? "Hello"}</span>,&nbsp;<span className="italic">{userName}.</span>
           </div>
         </div>
         <form action={signOutAction}>

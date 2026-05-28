@@ -91,6 +91,20 @@ body {
 }
 .statusbar-icons { display: flex; gap: 6px; align-items: center; }
 .statusbar svg { display: block; }
+.statusbar-clock { display: inline; }
+.statusbar-slogan {
+  display: none;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+@media (max-width: 899px) {
+  .statusbar-clock { display: none; }
+  .statusbar-slogan { display: inline; }
+}
 
 /* scrollable content area */
 .scroll {

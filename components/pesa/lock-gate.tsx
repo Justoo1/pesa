@@ -5,6 +5,7 @@ import { Icon } from "./icons"
 import { verifyAppPin } from "@/app/actions/settings"
 
 const STORAGE_KEY = "pesa.unlocked"
+const LOCK_EVENT = "pesa:lock-state"
 
 export function LockGate({
   enabled,
@@ -53,6 +54,7 @@ export function LockGate({
       const res = await verifyAppPin({ pin })
       if (res.ok) {
         sessionStorage.setItem(STORAGE_KEY, "1")
+        window.dispatchEvent(new Event(LOCK_EVENT))
         setUnlocked(true)
       } else {
         setError("Wrong PIN. Try again.")

@@ -1,15 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 const STORAGE_KEY = "pesa.unlocked"
+const LOCK_EVENT = "pesa:lock-state"
 
 export function LockButton({ appLockEnabled }: { appLockEnabled: boolean }) {
   const [toast, setToast] = useState<string | null>(null)
+  const [locked, setLocked] = useState<boolean>(appLockEnabled)
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const read = () => {
+      if (!appLockEnabled) {
+        setLocked(false)
+        return
+      }
+      setLocked(sessionStorage.getItem(STORAGE_KEY) !== "1")
+    }
+    read()
+    window.addEventListener(LOCK_EVENT, read)
+    return () => window.removeEventListener(LOCK_EVENT, read)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [appLockEnabled])
+
+  if (locked) return null
 
   const onClick = () => {
     if (appLockEnabled) {
       sessionStorage.removeItem(STORAGE_KEY)
+      window.dispatchEvent(new Event(LOCK_EVENT))
       window.location.reload()
       return
     }
