@@ -33,6 +33,7 @@ model User {
   paydayDayOfMonth  Int?
   appLockEnabled    Boolean @default(false)
   appLockPinHash    String?
+  onboardedAt       DateTime?
 
   // push notification prefs
   pushPaydayOn    Boolean @default(false)

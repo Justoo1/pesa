@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db"
 import { loadInsights } from "@/lib/insights"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
+import { LockButton } from "@/components/pesa/lock-button"
+import { OnboardingShell } from "@/components/pesa/onboarding/walkthrough"
 import type {
   AppState,
   Bucket,
@@ -42,6 +44,7 @@ export default async function Page() {
         pushPaydayOn: true,
         pushBucketHitOn: true,
         pushWrapOn: true,
+        onboardedAt: true,
       },
     }),
     prisma.bucket.findMany({
@@ -106,6 +109,10 @@ export default async function Page() {
     ledger: ledgerClient,
   }
 
+  if (!user.onboardedAt) {
+    return <OnboardingShell userName={profile.displayName} />
+  }
+
   return (
     <div className="stage">
       <div className="scene">
@@ -130,30 +137,7 @@ export default async function Page() {
             <div className="statusbar">
               <Clock />
               <span className="statusbar-icons">
-                <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
-                  <path
-                    d="M1 8h2v3H1zM5 6h2v5H5zM9 4h2v7H9zM13 2h2v9h-2z"
-                    fill="currentColor"
-                  />
-                </svg>
-                <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                  <path
-                    d="M8 11C4 11 1.5 8 0.5 6.5 2 4 4 2 8 2s6 2 7.5 4.5C14.5 8 12 11 8 11Zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
-                    fill="currentColor"
-                  />
-                </svg>
-                <svg width="26" height="12" viewBox="0 0 26 12" fill="none">
-                  <rect
-                    x="0.5"
-                    y="0.5"
-                    width="22"
-                    height="11"
-                    rx="3"
-                    stroke="currentColor"
-                  />
-                  <rect x="2" y="2" width="19" height="8" rx="1.5" fill="currentColor" />
-                  <rect x="23.5" y="4" width="2" height="4" rx="1" fill="currentColor" />
-                </svg>
+                <LockButton appLockEnabled={profile.appLockEnabled} />
               </span>
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
