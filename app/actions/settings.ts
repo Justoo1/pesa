@@ -26,7 +26,10 @@ export async function resetMonth() {
   const userId = await requireUserId()
   await prisma.$transaction([
     prisma.transaction.deleteMany({ where: { userId } }),
-    prisma.bucket.updateMany({ where: { userId }, data: { allocated: 0 } }),
+    prisma.bucket.updateMany({
+      where: { userId },
+      data: { allocated: 0, spent: 0 },
+    }),
   ])
   revalidatePath("/")
 }
@@ -56,6 +59,7 @@ export async function toggleRoundUps(enabled: boolean) {
 const paydaySchema = z.object({
   enabled: z.boolean(),
   dayOfMonth: z.number().int().min(1).max(31).optional(),
+  autoPayday: z.boolean().optional(),
 })
 
 export async function setPaydayPrefs(input: z.infer<typeof paydaySchema>) {
@@ -66,6 +70,7 @@ export async function setPaydayPrefs(input: z.infer<typeof paydaySchema>) {
     data: {
       paydayRemindersOn: parsed.enabled,
       paydayDayOfMonth: parsed.enabled ? (parsed.dayOfMonth ?? null) : null,
+      ...(parsed.autoPayday !== undefined && { autoPaydayOn: parsed.autoPayday }),
     },
   })
   revalidatePath("/")
@@ -75,6 +80,7 @@ const pushPrefsSchema = z.object({
   payday: z.boolean().optional(),
   bucketHit: z.boolean().optional(),
   wrap: z.boolean().optional(),
+  billsDue: z.boolean().optional(),
 })
 
 export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
@@ -86,6 +92,7 @@ export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
       ...(parsed.payday !== undefined && { pushPaydayOn: parsed.payday }),
       ...(parsed.bucketHit !== undefined && { pushBucketHitOn: parsed.bucketHit }),
       ...(parsed.wrap !== undefined && { pushWrapOn: parsed.wrap }),
+      ...(parsed.billsDue !== undefined && { pushBillsDueOn: parsed.billsDue }),
     },
   })
   revalidatePath("/")

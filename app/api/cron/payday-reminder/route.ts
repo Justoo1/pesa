@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { sendEmail } from "@/lib/email"
 import { sendPushToUser } from "@/lib/push"
+import { applyPaydayTemplateForUser, loadPaydayTemplate } from "@/lib/payday"
 
 async function sendReminderEmail(email: string, displayName: string | null) {
   const base = process.env.AUTH_URL ?? "http://localhost:3000"
@@ -67,9 +69,54 @@ export async function GET(request: Request) {
     }
   }
 
+  // Auto-disburse pass. Independent of the email/push reminders above so that
+  // users can choose to silently auto-disburse without reminders too.
+  const autoUsers = await prisma.user.findMany({
+    where: {
+      autoPaydayOn: true,
+      paydayDayOfMonth: dayOfMonth,
+    },
+    select: { id: true },
+  })
+
+  let autoApplied = 0
+  let autoUsersNotified = 0
+  for (const u of autoUsers) {
+    try {
+      const template = await loadPaydayTemplate(u.id)
+      if (template.length === 0) continue
+      const drafts = template.map((d) => ({
+        bucketId: d.bucketId,
+        amount: d.amount,
+        note: "Auto-payday",
+      }))
+      const res = await applyPaydayTemplateForUser(u.id, drafts)
+      if (res.applied > 0) {
+        autoApplied += res.applied
+        revalidatePath("/")
+        try {
+          const r = await sendPushToUser(u.id, {
+            title: "Disbursed for you",
+            body: `${res.applied} pot${res.applied === 1 ? "" : "s"} topped up — tap to review.`,
+            url: "/",
+            tag: `auto-payday-${new Date().getFullYear()}-${new Date().getMonth() + 1}`,
+          })
+          if (r.sent > 0) autoUsersNotified += 1
+        } catch (e) {
+          console.error("auto-payday push error", u.id, e)
+        }
+      }
+    } catch (e) {
+      console.error("auto-payday apply error", u.id, e)
+    }
+  }
+
   return NextResponse.json({
     day: dayOfMonth,
     email: emailUsers.length,
     push: pushSent,
+    autoUsers: autoUsers.length,
+    autoApplied,
+    autoUsersNotified,
   })
 }

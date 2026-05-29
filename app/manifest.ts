@@ -1,6 +1,15 @@
 import type { MetadataRoute } from "next"
 
-export default function manifest(): MetadataRoute.Manifest {
+type ShareTargetManifest = MetadataRoute.Manifest & {
+  share_target?: {
+    action: string
+    method: "GET" | "POST"
+    enctype?: string
+    params: { title?: string; text?: string; url?: string }
+  }
+}
+
+export default function manifest(): ShareTargetManifest {
   return {
     name: "Pesa — Personal Budgeting",
     short_name: "Pesa",
@@ -25,5 +34,16 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
     ],
+    // Receive shared text (SMS receipts, copied transaction blurbs) and route
+    // it into a "Log a spend" landing — see app/share/page.tsx.
+    share_target: {
+      action: "/share",
+      method: "GET",
+      params: {
+        title: "title",
+        text: "text",
+        url: "url",
+      },
+    },
   }
 }

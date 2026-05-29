@@ -39,6 +39,10 @@ model User {
   pushPaydayOn    Boolean @default(false)
   pushBucketHitOn Boolean @default(true)
   pushWrapOn      Boolean @default(true)
+  pushBillsDueOn  Boolean @default(true)
+
+  // auto-disburse on payday using last month's template
+  autoPaydayOn Boolean @default(false)
 
   accounts          Account[]
   sessions          Session[]
@@ -93,6 +97,7 @@ model Bucket {
   name           String
   target         Int
   allocated      Int       @default(0)
+  spent          Int       @default(0)
   color          String
   icon           String
   priority       Int
@@ -116,12 +121,14 @@ model Transaction {
   method     String
   occurredAt DateTime @default(now())
   createdAt  DateTime @default(now())
+  transferId String?
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
 
   @@index([userId, occurredAt])
   @@index([bucketId, occurredAt])
+  @@index([transferId])
 }
 
 model PushSubscription {

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Bucket" ADD COLUMN     "spent" INTEGER NOT NULL DEFAULT 0;

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "User"
+  ADD COLUMN "pushBillsDueOn" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "autoPaydayOn" BOOLEAN NOT NULL DEFAULT false;

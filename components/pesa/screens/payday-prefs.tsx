@@ -24,6 +24,8 @@ type Props = {
   initialPushPayday: boolean
   initialPushBucketHit: boolean
   initialPushWrap: boolean
+  initialPushBillsDue: boolean
+  initialAutoPayday: boolean
   initialHasSubscription: boolean
 }
 
@@ -39,6 +41,8 @@ function NotificationsContent({
   initialPushPayday,
   initialPushBucketHit,
   initialPushWrap,
+  initialPushBillsDue,
+  initialAutoPayday,
   initialHasSubscription,
 }: Props) {
   const router = useRouter()
@@ -49,6 +53,8 @@ function NotificationsContent({
   const [pushPayday, setPushPayday] = useState(initialPushPayday)
   const [pushBucketHit, setPushBucketHit] = useState(initialPushBucketHit)
   const [pushWrap, setPushWrap] = useState(initialPushWrap)
+  const [pushBillsDue, setPushBillsDue] = useState(initialPushBillsDue)
+  const [autoPayday, setAutoPayday] = useState(initialAutoPayday)
 
   const [hasSub, setHasSub] = useState(initialHasSubscription)
   const [supported] = useState(() => isPushSupported())
@@ -115,11 +121,16 @@ function NotificationsContent({
     startTransition(async () => {
       try {
         await Promise.all([
-          setPaydayPrefs({ enabled, dayOfMonth: enabled ? day : undefined }),
+          setPaydayPrefs({
+            enabled,
+            dayOfMonth: enabled ? day : undefined,
+            autoPayday,
+          }),
           setPushPrefs({
             payday: pushPayday,
             bucketHit: pushBucketHit,
             wrap: pushWrap,
+            billsDue: pushBillsDue,
           }),
         ])
         router.refresh()
@@ -245,9 +256,30 @@ function NotificationsContent({
             disabled={!hasSub}
             onChange={setPushWrap}
           />
+          <ToggleRow
+            label="Bills due soon"
+            checked={pushBillsDue}
+            disabled={!hasSub}
+            onChange={setPushBillsDue}
+          />
           {!hasSub && (
             <Note>Enable push on this device above to use these.</Note>
           )}
+        </Section>
+
+        <Section title="Auto-payday">
+          <ToggleRow
+            label="Replay last month on payday"
+            checked={autoPayday}
+            disabled={!enabled}
+            onChange={setAutoPayday}
+          />
+          <Note>
+            On your payday-of-month, Pesa disburses to each pot the same
+            amount you sent last month. You&apos;ll get a push so you can
+            review. Requires the email reminder above to be on so we know
+            the day.
+          </Note>
         </Section>
 
         <Section title="Email">

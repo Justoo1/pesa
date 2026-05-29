@@ -19,6 +19,8 @@ export function HomeScreen({
   state,
   onOpenBucket,
   onOpenDisburse,
+  onOpenPaydayReview,
+  paydayTemplateSize,
   onGoTo,
   currency,
   userName,
@@ -27,6 +29,8 @@ export function HomeScreen({
   state: AppState
   onOpenBucket: (id: string) => void
   onOpenDisburse: () => void
+  onOpenPaydayReview?: () => void
+  paydayTemplateSize?: number
   onGoTo: (t: TabId) => void
   currency: string
   userName: string
@@ -41,12 +45,10 @@ export function HomeScreen({
 
   const [greeting, setGreeting] = useState<string | null>(null)
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     const tick = () => setGreeting(greetingFor(new Date().getHours()))
     tick()
     const id = setInterval(tick, 60_000)
     return () => clearInterval(id)
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
   return (
@@ -203,6 +205,34 @@ export function HomeScreen({
               <Icon name="spark" size={18} />
             </button>
           </div>
+
+          {onOpenPaydayReview && (
+            <button
+              type="button"
+              onClick={onOpenPaydayReview}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                background: "transparent",
+                border: 0,
+                color: "#DDE5C8",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                padding: "6px 0",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <Icon name="history" size={13} />{" "}
+              {paydayTemplateSize && paydayTemplateSize > 0
+                ? `Replay last month · ${paydayTemplateSize} pot${paydayTemplateSize === 1 ? "" : "s"}`
+                : "Replay last month"}
+            </button>
+          )}
         </div>
       </div>
 

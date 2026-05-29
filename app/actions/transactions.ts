@@ -1,10 +1,12 @@
 "use server"
 
+import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
+import { applyPaydayTemplateForUser } from "@/lib/payday"
 
 const disburseSchema = z.object({
   bucketId: z.string().min(1),
@@ -128,4 +130,144 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
     revalidatePath(`/months/${ym}`)
   }
   return { roundUp }
+}
+
+const paydayTemplateSchema = z.object({
+  drafts: z
+    .array(
+      z.object({
+        bucketId: z.string().min(1),
+        amount: z.number().int().positive(),
+        note: z.string().max(200).optional(),
+        method: z.string().max(40).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+})
+
+export async function applyPaydayTemplate(
+  input: z.infer<typeof paydayTemplateSchema>,
+) {
+  const userId = await requireUserId()
+  const { drafts } = paydayTemplateSchema.parse(input)
+  const result = await applyPaydayTemplateForUser(userId, drafts)
+  revalidatePath("/")
+  return result
+}
+
+const spendSchema = z.object({
+  bucketId: z.string().min(1),
+  amount: z.number().int().positive(),
+  note: z.string().max(200).optional(),
+  method: z.string().max(40).optional(),
+  occurredAt: z.coerce.date().optional(),
+})
+
+export async function spend(input: z.infer<typeof spendSchema>) {
+  const userId = await requireUserId()
+  const { bucketId, amount, note, method, occurredAt } = spendSchema.parse(input)
+
+  const bucket = await prisma.bucket.findFirst({
+    where: { id: bucketId, userId, archivedAt: null },
+    select: { id: true, name: true, allocated: true, spent: true },
+  })
+  if (!bucket) throw new Error("Pot not found")
+
+  const available = bucket.allocated - bucket.spent
+  if (amount > available) {
+    throw new Error(`Only ${available} left in ${bucket.name}`)
+  }
+
+  await prisma.$transaction([
+    prisma.transaction.create({
+      data: {
+        userId,
+        bucketId,
+        amount: -amount,
+        note: note?.trim() || "Spend",
+        method: method || "Cash",
+        ...(occurredAt ? { occurredAt } : {}),
+      },
+    }),
+    prisma.bucket.update({
+      where: { id: bucketId },
+      data: { spent: { increment: amount } },
+    }),
+  ])
+
+  revalidatePath("/")
+  if (occurredAt) {
+    const ym = `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(2, "0")}`
+    revalidatePath("/months")
+    revalidatePath(`/months/${ym}`)
+  }
+}
+
+const transferSchema = z
+  .object({
+    fromBucketId: z.string().min(1),
+    toBucketId: z.string().min(1),
+    amount: z.number().int().positive(),
+    note: z.string().max(200).optional(),
+  })
+  .refine((d) => d.fromBucketId !== d.toBucketId, {
+    message: "Pick two different pots",
+    path: ["toBucketId"],
+  })
+
+export async function transfer(input: z.infer<typeof transferSchema>) {
+  const userId = await requireUserId()
+  const { fromBucketId, toBucketId, amount, note } = transferSchema.parse(input)
+
+  const [from, to] = await Promise.all([
+    prisma.bucket.findFirst({
+      where: { id: fromBucketId, userId, archivedAt: null },
+      select: { id: true, name: true, allocated: true, spent: true },
+    }),
+    prisma.bucket.findFirst({
+      where: { id: toBucketId, userId, archivedAt: null },
+      select: { id: true, name: true },
+    }),
+  ])
+  if (!from || !to) throw new Error("Pot not found")
+  const available = from.allocated - from.spent
+  if (available < amount) {
+    throw new Error(`Only ${available} in ${from.name} to move`)
+  }
+
+  const transferId = randomUUID()
+
+  await prisma.$transaction([
+    prisma.transaction.create({
+      data: {
+        userId,
+        bucketId: fromBucketId,
+        amount: -amount,
+        note: note?.trim() || `→ ${to.name}`,
+        method: "Transfer",
+        transferId,
+      },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId,
+        bucketId: toBucketId,
+        amount: amount,
+        note: note?.trim() || `← ${from.name}`,
+        method: "Transfer",
+        transferId,
+      },
+    }),
+    prisma.bucket.update({
+      where: { id: fromBucketId },
+      data: { allocated: { decrement: amount } },
+    }),
+    prisma.bucket.update({
+      where: { id: toBucketId },
+      data: { allocated: { increment: amount } },
+    }),
+  ])
+
+  revalidatePath("/")
 }

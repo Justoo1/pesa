@@ -38,6 +38,7 @@ export type Bucket = {
   name: string
   target: number
   allocated: number
+  spent: number
   color: BucketColor
   icon: IconName
   priority: number
@@ -53,6 +54,7 @@ export type Transaction = {
   amount: number
   note: string
   method: string
+  transferId: string | null
 }
 
 export type UserProfile = {
@@ -70,6 +72,8 @@ export type UserProfile = {
   pushPaydayOn: boolean
   pushBucketHitOn: boolean
   pushWrapOn: boolean
+  pushBillsDueOn: boolean
+  autoPaydayOn: boolean
   hasPushSubscription: boolean
   hasSavingsBucket: boolean
 }
@@ -114,4 +118,27 @@ export type Action =
       icon: IconName
       kind: BucketKind
       dueDayOfMonth?: number | null
+    }
+  | {
+      type: "transfer"
+      fromBucketId: string
+      toBucketId: string
+      amount: number
+      note?: string
+    }
+  | {
+      type: "spend"
+      bucketId: string
+      amount: number
+      note?: string
+      method?: string
+    }
+  | {
+      type: "payday-replay"
+      drafts: Array<{
+        bucketId: string
+        amount: number
+        note?: string
+        method?: string
+      }>
     }

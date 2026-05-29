@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { loadInsights } from "@/lib/insights"
+import { loadPaydayTemplate } from "@/lib/payday"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
 import { LockButton } from "@/components/pesa/lock-button"
@@ -25,7 +26,8 @@ export default async function Page() {
   }
   const userId = session.user.id
 
-  const [user, buckets, ledger, insights, pushCount, savingsCount] = await Promise.all([
+  const [user, buckets, ledger, insights, pushCount, savingsCount, paydayTemplate] =
+    await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -44,6 +46,8 @@ export default async function Page() {
         pushPaydayOn: true,
         pushBucketHitOn: true,
         pushWrapOn: true,
+        pushBillsDueOn: true,
+        autoPaydayOn: true,
         onboardedAt: true,
       },
     }),
@@ -61,6 +65,7 @@ export default async function Page() {
     prisma.bucket.count({
       where: { userId, archivedAt: null, kind: "future" },
     }),
+    loadPaydayTemplate(userId),
   ])
 
   const profile: UserProfile = {
@@ -78,6 +83,8 @@ export default async function Page() {
     pushPaydayOn: user.pushPaydayOn,
     pushBucketHitOn: user.pushBucketHitOn,
     pushWrapOn: user.pushWrapOn,
+    pushBillsDueOn: user.pushBillsDueOn,
+    autoPaydayOn: user.autoPaydayOn,
     hasPushSubscription: pushCount > 0,
     hasSavingsBucket: savingsCount > 0,
   }
@@ -87,6 +94,7 @@ export default async function Page() {
     name: b.name,
     target: b.target,
     allocated: b.allocated,
+    spent: b.spent,
     color: b.color as BucketColor,
     icon: b.icon as IconName,
     priority: b.priority,
@@ -101,6 +109,7 @@ export default async function Page() {
     note: t.note,
     method: t.method,
     occurredAt: t.occurredAt.toISOString(),
+    transferId: t.transferId,
   }))
 
   const initialState: AppState = {
@@ -149,6 +158,7 @@ export default async function Page() {
                 profile={profile}
                 months={insights.months}
                 netWorth={insights.netWorth}
+                paydayTemplate={paydayTemplate}
               />
             </div>
           </div>

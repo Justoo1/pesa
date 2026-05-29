@@ -34,8 +34,15 @@ export type AllTimeMonth = {
  * Ordered newest-first.
  */
 export async function loadAllMonths(userId: string): Promise<AllTimeMonth[]> {
+  // Spends (negative amount, no transferId) consume from a pot but don't
+  // re-shape the allocation picture, so they're excluded. Transfer halves
+  // (signed, has transferId) stay in — they genuinely redirect money between
+  // kinds.
   const txns = await prisma.transaction.findMany({
-    where: { userId },
+    where: {
+      userId,
+      OR: [{ transferId: { not: null } }, { amount: { gt: 0 } }],
+    },
     select: { amount: true, occurredAt: true, bucket: { select: { kind: true } } },
   })
 
@@ -75,7 +82,11 @@ export async function loadInsights(
   const start = new Date(now.getFullYear(), now.getMonth() - 5, 1)
 
   const txns = await prisma.transaction.findMany({
-    where: { userId, occurredAt: { gte: start } },
+    where: {
+      userId,
+      occurredAt: { gte: start },
+      OR: [{ transferId: { not: null } }, { amount: { gt: 0 } }],
+    },
     select: { amount: true, occurredAt: true, bucket: { select: { kind: true } } },
   })
 
@@ -105,11 +116,14 @@ export async function loadInsights(
     row.total += t.amount
   }
 
-  const allFuture = await prisma.transaction.aggregate({
-    where: { userId, bucket: { kind: "future" } },
-    _sum: { amount: true },
+  // Net worth = what's actually sitting in future-kind pots right now
+  // (allocated less spent), not the lifetime inflow.
+  const futureBuckets = await prisma.bucket.aggregate({
+    where: { userId, kind: "future", archivedAt: null },
+    _sum: { allocated: true, spent: true },
   })
-  const netWorth = allFuture._sum.amount ?? 0
+  const netWorth =
+    (futureBuckets._sum.allocated ?? 0) - (futureBuckets._sum.spent ?? 0)
 
   return { months, netWorth }
 }

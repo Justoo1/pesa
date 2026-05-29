@@ -27,7 +27,11 @@ export function BucketCard({
   currency: string
 }) {
   const pct = bucket.target > 0 ? (bucket.allocated / bucket.target) * 100 : 0
-  const done = bucket.allocated >= bucket.target
+  const done = bucket.allocated >= bucket.target && bucket.spent === 0
+  const left = Math.max(0, bucket.allocated - bucket.spent)
+  const spentPct =
+    bucket.target > 0 ? (bucket.spent / bucket.target) * 100 : 0
+  const hasSpend = bucket.spent > 0
   return (
     <button
       className="card"
@@ -63,19 +67,45 @@ export function BucketCard({
           {bucket.name}
         </div>
         <div className="num" style={{ fontSize: 12, color: "var(--ink-3)" }}>
-          {fmtMoney(bucket.allocated, currency)}{" "}
-          <span style={{ color: "var(--ink-3)", opacity: 0.5 }}>
-            / {fmtMoney(bucket.target, currency)}
-          </span>
+          {hasSpend ? (
+            <>
+              {fmtMoney(left, currency)} left{" "}
+              <span style={{ color: "var(--ink-3)", opacity: 0.5 }}>
+                of {fmtMoney(bucket.allocated, currency)}
+              </span>
+            </>
+          ) : (
+            <>
+              {fmtMoney(bucket.allocated, currency)}{" "}
+              <span style={{ color: "var(--ink-3)", opacity: 0.5 }}>
+                / {fmtMoney(bucket.target, currency)}
+              </span>
+            </>
+          )}
         </div>
       </div>
-      <div className="bucket-bar">
+      <div className="bucket-bar" style={{ position: "relative" }}>
         <span
           style={{
             width: `${Math.min(100, pct)}%`,
             background: done ? "var(--green)" : "var(--clay)",
           }}
         ></span>
+        {hasSpend && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `${Math.min(100, spentPct)}%`,
+              background: "rgba(33,26,18,0.18)",
+              borderTopLeftRadius: "inherit",
+              borderBottomLeftRadius: "inherit",
+            }}
+          />
+        )}
       </div>
     </button>
   )

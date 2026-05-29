@@ -5,23 +5,29 @@ import { Icon } from "../icons"
 import { fmtMoney, fmtTxnDate } from "../format"
 import { Pot } from "../ui"
 import { EditPotSheet } from "./edit-pot"
-import type { AppState } from "../types"
+import { TransferSheet } from "./transfer"
+import { SpendSheet } from "./spend"
+import type { Action, AppState } from "../types"
 
 export function BucketDetailScreen({
   bucketId,
   state,
+  dispatch,
   onBack,
   onOpenDisburse,
   currency,
 }: {
   bucketId: string
   state: AppState
+  dispatch: (a: Action) => void
   onBack: () => void
   onOpenDisburse: (id: string) => void
   currency: string
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [editFocus, setEditFocus] = useState<"target" | undefined>(undefined)
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [spendOpen, setSpendOpen] = useState(false)
 
   const bucket = state.buckets.find((b) => b.id === bucketId)
 
@@ -136,20 +142,74 @@ export function BucketDetailScreen({
           &nbsp;of&nbsp;{fmtMoney(bucket.target, currency)}&nbsp;·&nbsp;{Math.round(pct)}%
         </div>
 
+        {bucket.spent > 0 && (
+          <div
+            style={{
+              marginTop: 14,
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 8,
+            }}
+          >
+            <StatCell
+              label="In"
+              value={fmtMoney(bucket.allocated, currency)}
+              tone="ink"
+            />
+            <StatCell
+              label="Spent"
+              value={fmtMoney(bucket.spent, currency)}
+              tone="clay"
+            />
+            <StatCell
+              label="Left"
+              value={fmtMoney(Math.max(0, bucket.allocated - bucket.spent), currency)}
+              tone="green"
+            />
+          </div>
+        )}
+
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr",
             gap: 8,
             marginTop: 18,
             width: "100%",
           }}
         >
-          <button className="btn btn-green" onClick={() => onOpenDisburse(bucket.id)}>
-            <Icon name="send" size={16} /> Top up
+          <button
+            className="btn btn-green"
+            onClick={() => onOpenDisburse(bucket.id)}
+            style={{ padding: "10px 8px", fontSize: 13 }}
+          >
+            <Icon name="send" size={14} /> Top up
           </button>
-          <button className="btn btn-soft" onClick={() => openEdit("target")}>
-            <Icon name="edit" size={16} /> Adjust target
+          <button
+            className="btn btn-clay"
+            onClick={() => setSpendOpen(true)}
+            disabled={bucket.allocated - bucket.spent <= 0}
+            style={{ padding: "10px 8px", fontSize: 13 }}
+          >
+            <Icon name="minus" size={14} /> Spend
+          </button>
+          <button
+            className="btn btn-soft"
+            onClick={() => setTransferOpen(true)}
+            disabled={bucket.allocated - bucket.spent <= 0 || state.buckets.length < 2}
+            style={{ padding: "10px 8px", fontSize: 13 }}
+          >
+            <Icon name="share" size={14} /> Move
+          </button>
+        </div>
+        <div style={{ width: "100%", marginTop: 8 }}>
+          <button
+            className="btn btn-ghost btn-block"
+            onClick={() => openEdit("target")}
+            style={{ fontSize: 13 }}
+          >
+            <Icon name="edit" size={14} /> Adjust target
           </button>
         </div>
       </div>
@@ -166,7 +226,7 @@ export function BucketDetailScreen({
           This month
         </div>
         <div className="tiny">
-          {ledger.length} transfer{ledger.length === 1 ? "" : "s"}
+          {ledger.length} entr{ledger.length === 1 ? "y" : "ies"}
         </div>
       </div>
 
@@ -174,27 +234,47 @@ export function BucketDetailScreen({
         <div className="card" style={{ padding: "4px 4px" }}>
           {ledger.length === 0 && (
             <div style={{ padding: 18, textAlign: "center" }}>
-              <div className="body">No transfers yet for {bucket.name}.</div>
+              <div className="body">No activity yet for {bucket.name}.</div>
             </div>
           )}
-          {ledger.map((t) => (
-            <div key={t.id} className="row" style={{ borderTop: "1px solid transparent" }}>
-              <div className={`row-icon ${bucket.color}`}>
-                <Icon name={bucket.icon} size={16} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>
-                  {t.note}
+          {ledger.map((t) => {
+            const outflow = t.amount < 0
+            const isTransfer = !!t.transferId
+            const rowIcon = outflow
+              ? isTransfer
+                ? "share"
+                : "minus"
+              : bucket.icon
+            return (
+              <div
+                key={t.id}
+                className="row"
+                style={{ borderTop: "1px solid transparent" }}
+              >
+                <div className={`row-icon ${bucket.color}`}>
+                  <Icon name={rowIcon} size={16} />
                 </div>
-                <div className="tiny">
-                  {fmtTxnDate(t.occurredAt)} · {t.method}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>
+                    {t.note}
+                  </div>
+                  <div className="tiny">
+                    {fmtTxnDate(t.occurredAt)} · {t.method}
+                  </div>
+                </div>
+                <div
+                  className="num"
+                  style={{
+                    fontWeight: 600,
+                    color: outflow ? "var(--clay-deep)" : undefined,
+                  }}
+                >
+                  {outflow ? "−" : "+"}
+                  {fmtMoney(Math.abs(t.amount), currency)}
                 </div>
               </div>
-              <div className="num" style={{ fontWeight: 600 }}>
-                +{fmtMoney(t.amount, currency)}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         {remaining > 0 && (
           <div
@@ -225,6 +305,64 @@ export function BucketDetailScreen({
         bucket={bucket}
         focusField={editFocus}
       />
+
+      <TransferSheet
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        fromBucketId={bucket.id}
+        state={state}
+        dispatch={dispatch}
+        currency={currency}
+      />
+
+      <SpendSheet
+        open={spendOpen}
+        onClose={() => setSpendOpen(false)}
+        bucketId={bucket.id}
+        state={state}
+        dispatch={dispatch}
+        currency={currency}
+      />
     </>
+  )
+}
+
+function StatCell({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone: "ink" | "clay" | "green"
+}) {
+  const color =
+    tone === "clay"
+      ? "var(--clay-deep)"
+      : tone === "green"
+        ? "var(--green-deep)"
+        : "var(--ink)"
+  return (
+    <div
+      className="card"
+      style={{
+        padding: "8px 10px",
+        textAlign: "center",
+        background: "var(--bg-card)",
+      }}
+    >
+      <div
+        className="tiny"
+        style={{ fontWeight: 700, letterSpacing: "0.08em", color: "var(--ink-3)" }}
+      >
+        {label.toUpperCase()}
+      </div>
+      <div
+        className="num"
+        style={{ fontWeight: 600, fontSize: 14, color, marginTop: 2 }}
+      >
+        {value}
+      </div>
+    </div>
   )
 }

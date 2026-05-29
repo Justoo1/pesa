@@ -493,6 +493,8 @@ function SettingsPanel({
         initialPushPayday={profile.pushPaydayOn}
         initialPushBucketHit={profile.pushBucketHitOn}
         initialPushWrap={profile.pushWrapOn}
+        initialPushBillsDue={profile.pushBillsDueOn}
+        initialAutoPayday={profile.autoPaydayOn}
         initialHasSubscription={profile.hasPushSubscription}
       />
       <RoundUpsSheet
