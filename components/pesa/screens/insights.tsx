@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { fmtMoney } from "../format"
 import { Ring } from "../ui"
+import { MilestoneBanner } from "../milestone-banner"
 import type { AppState, BucketColor, MonthRow } from "../types"
 
 export function InsightsScreen({
@@ -62,6 +63,7 @@ export function InsightsScreen({
 
   return (
     <>
+      <MilestoneBanner buckets={state.buckets} currency={currency} />
       <div style={{ padding: "8px 20px 0" }}>
         <div
           className="tiny"

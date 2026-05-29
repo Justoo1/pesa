@@ -186,6 +186,7 @@ export function PesaApp({
   paydayTemplate,
   avgEssentialsPerMonth,
   annualMonths,
+  filledStreak,
 }: {
   initialState: AppState
   profile: UserProfile
@@ -194,6 +195,7 @@ export function PesaApp({
   paydayTemplate: PaydayDraft[]
   avgEssentialsPerMonth: number
   annualMonths: MonthRow[]
+  filledStreak: number
 }) {
   const router = useRouter()
   const [state, dispatch] = useReducer(appReducer, initialState)
@@ -371,6 +373,7 @@ export function PesaApp({
         monthLabel={profile.monthLabel}
         months={months}
         annualMonths={annualMonths}
+        filledStreak={filledStreak}
       />
     )
   } else if (tab === "settings") {

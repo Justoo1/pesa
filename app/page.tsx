@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import {
   loadAnnualMonths,
   loadAvgEssentialsPerMonth,
+  loadFilledStreak,
   loadInsights,
   loadPotProjections,
 } from "@/lib/insights"
@@ -42,6 +43,7 @@ export default async function Page() {
     projections,
     avgEssentialsPerMonth,
     annualMonths,
+    filledStreak,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -84,6 +86,7 @@ export default async function Page() {
     loadPotProjections(userId),
     loadAvgEssentialsPerMonth(userId),
     loadAnnualMonths(userId, new Date().getFullYear()),
+    loadFilledStreak(userId),
   ])
 
   const profile: UserProfile = {
@@ -180,6 +183,7 @@ export default async function Page() {
                 paydayTemplate={paydayTemplate}
                 avgEssentialsPerMonth={avgEssentialsPerMonth}
                 annualMonths={annualMonths}
+                filledStreak={filledStreak}
               />
             </div>
           </div>

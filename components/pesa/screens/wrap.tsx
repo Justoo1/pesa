@@ -62,6 +62,7 @@ export function WrapScreen({
   monthLabel,
   months,
   annualMonths,
+  filledStreak,
 }: {
   state: AppState
   currency: string
@@ -69,6 +70,7 @@ export function WrapScreen({
   monthLabel: string
   months: MonthRow[]
   annualMonths: MonthRow[]
+  filledStreak: number
 }) {
   const today = new Date()
   const lastDayOfMonth = new Date(
@@ -346,6 +348,42 @@ export function WrapScreen({
           tone="clay"
         />
       </div>
+
+      {filledStreak >= 2 && (
+        <div style={{ padding: "12px 20px 0" }}>
+          <div
+            className="card"
+            style={{
+              padding: 14,
+              background: "var(--green-tint)",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              className="row-icon sage"
+              style={{ width: 36, height: 36, borderRadius: 12 }}
+            >
+              <Icon name="spark" size={18} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div
+                className="serif"
+                style={{ fontSize: 18, lineHeight: 1.1, color: "var(--green-deep)" }}
+              >
+                {filledStreak} month{filledStreak === 1 ? "" : "s"} in a row, every pot full
+              </div>
+              <div
+                className="tiny"
+                style={{ color: "var(--green-deep)", opacity: 0.75, marginTop: 2 }}
+              >
+                Quiet consistency &mdash; keep going.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: "16px 20px 0" }}>
         <div className="card" style={{ padding: 16 }}>

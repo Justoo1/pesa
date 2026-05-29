@@ -235,6 +235,65 @@ export async function loadAnnualMonths(
 }
 
 /**
+ * How many *prior* complete months in a row every active pot reached its
+ * target. Uses the pot's *current* target as the bar — historical targets
+ * aren't snapshotted in the schema, so this is approximate when targets have
+ * been adjusted recently. Pots created after a candidate month are skipped
+ * for that month so a new pot doesn't break a streak retroactively.
+ */
+export async function loadFilledStreak(userId: string): Promise<number> {
+  const buckets = await prisma.bucket.findMany({
+    where: { userId, archivedAt: null, target: { gt: 0 } },
+    select: { id: true, target: true, createdAt: true },
+  })
+  if (buckets.length === 0) return 0
+
+  const now = new Date()
+  // Look back at most 24 months — a longer streak than that is unlikely and
+  // the loop bails as soon as a month doesn't qualify anyway.
+  const earliest = new Date(now.getFullYear(), now.getMonth() - 24, 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth(), 1) // exclusive — skips current month
+
+  const txns = await prisma.transaction.findMany({
+    where: {
+      userId,
+      occurredAt: { gte: earliest, lt: monthEnd },
+      amount: { gt: 0 },
+      transferId: null,
+    },
+    select: { bucketId: true, amount: true, occurredAt: true },
+  })
+
+  // Bucket inflow by [bucketId][YYYY-MM].
+  const byBucketMonth = new Map<string, Map<string, number>>()
+  for (const t of txns) {
+    const ym = `${t.occurredAt.getFullYear()}-${String(t.occurredAt.getMonth() + 1).padStart(2, "0")}`
+    let inner = byBucketMonth.get(t.bucketId)
+    if (!inner) {
+      inner = new Map()
+      byBucketMonth.set(t.bucketId, inner)
+    }
+    inner.set(ym, (inner.get(ym) ?? 0) + t.amount)
+  }
+
+  let streak = 0
+  for (let i = 1; i <= 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    const monthStart = d
+    const eligible = buckets.filter((b) => b.createdAt <= monthStart)
+    if (eligible.length === 0) break
+    const allFilled = eligible.every((b) => {
+      const allocated = byBucketMonth.get(b.id)?.get(ym) ?? 0
+      return allocated >= b.target
+    })
+    if (!allFilled) break
+    streak += 1
+  }
+  return streak
+}
+
+/**
  * Average monthly outflow on essentials + bills over the past 3 complete
  * months. The denominator for the emergency cushion meter. Returns 0 if
  * there's no historical data so the caller can branch on it.
