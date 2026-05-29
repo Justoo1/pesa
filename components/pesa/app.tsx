@@ -184,12 +184,16 @@ export function PesaApp({
   months,
   netWorth,
   paydayTemplate,
+  avgEssentialsPerMonth,
+  annualMonths,
 }: {
   initialState: AppState
   profile: UserProfile
   months: MonthRow[]
   netWorth: number
   paydayTemplate: PaydayDraft[]
+  avgEssentialsPerMonth: number
+  annualMonths: MonthRow[]
 }) {
   const router = useRouter()
   const [state, dispatch] = useReducer(appReducer, initialState)
@@ -332,6 +336,7 @@ export function PesaApp({
           setDisburseOpen(true)
         }}
         currency={profile.currency}
+        avgEssentialsPerMonth={avgEssentialsPerMonth}
       />
     )
   } else if (tab === "home") {
@@ -365,6 +370,7 @@ export function PesaApp({
         userName={profile.displayName}
         monthLabel={profile.monthLabel}
         months={months}
+        annualMonths={annualMonths}
       />
     )
   } else if (tab === "settings") {

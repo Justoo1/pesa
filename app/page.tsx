@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
-import { loadInsights } from "@/lib/insights"
+import {
+  loadAnnualMonths,
+  loadAvgEssentialsPerMonth,
+  loadInsights,
+  loadPotProjections,
+} from "@/lib/insights"
 import { loadPaydayTemplate } from "@/lib/payday"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
@@ -26,8 +31,18 @@ export default async function Page() {
   }
   const userId = session.user.id
 
-  const [user, buckets, ledger, insights, pushCount, savingsCount, paydayTemplate] =
-    await Promise.all([
+  const [
+    user,
+    buckets,
+    ledger,
+    insights,
+    pushCount,
+    savingsCount,
+    paydayTemplate,
+    projections,
+    avgEssentialsPerMonth,
+    annualMonths,
+  ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -66,6 +81,9 @@ export default async function Page() {
       where: { userId, archivedAt: null, kind: "future" },
     }),
     loadPaydayTemplate(userId),
+    loadPotProjections(userId),
+    loadAvgEssentialsPerMonth(userId),
+    loadAnnualMonths(userId, new Date().getFullYear()),
   ])
 
   const profile: UserProfile = {
@@ -100,6 +118,7 @@ export default async function Page() {
     priority: b.priority,
     kind: b.kind as BucketKind,
     dueDayOfMonth: b.dueDayOfMonth,
+    projection: projections[b.id] ?? null,
   }))
 
   const ledgerClient: Transaction[] = ledger.map((t) => ({
@@ -159,6 +178,8 @@ export default async function Page() {
                 months={insights.months}
                 netWorth={insights.netWorth}
                 paydayTemplate={paydayTemplate}
+                avgEssentialsPerMonth={avgEssentialsPerMonth}
+                annualMonths={annualMonths}
               />
             </div>
           </div>

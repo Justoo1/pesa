@@ -61,12 +61,14 @@ export function WrapScreen({
   userName,
   monthLabel,
   months,
+  annualMonths,
 }: {
   state: AppState
   currency: string
   userName: string
   monthLabel: string
   months: MonthRow[]
+  annualMonths: MonthRow[]
 }) {
   const today = new Date()
   const lastDayOfMonth = new Date(
@@ -76,6 +78,7 @@ export function WrapScreen({
   ).getDate()
   const isFinalDay = today.getDate() === lastDayOfMonth
   const wrapLabel = isFinalDay ? "The Wrap" : "Month so far"
+  const [view, setView] = useState<"month" | "year">("month")
 
   const totalAllocated = state.buckets.reduce((s, b) => s + b.allocated, 0)
   const saved = state.buckets
@@ -194,18 +197,81 @@ export function WrapScreen({
 
   return (
     <>
-      <div style={{ padding: "8px 20px 0" }}>
-        <div
-          className="tiny"
-          style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
-        >
-          {monthLabel} · {wrapLabel}
+      <div
+        style={{
+          padding: "8px 20px 0",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            className="tiny"
+            style={{ fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+          >
+            {view === "year"
+              ? `${today.getFullYear()} · Year so far`
+              : `${monthLabel} · ${wrapLabel}`}
+          </div>
+          <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>
+            {view === "year" ? (
+              <>
+                Your year, <span className="italic">in flow.</span>
+              </>
+            ) : (
+              <>
+                Your month, <span className="italic">in flow.</span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>
-          Your month, <span className="italic">in flow.</span>
+        <div
+          role="tablist"
+          aria-label="Wrap range"
+          style={{
+            display: "flex",
+            background: "rgba(33,26,18,0.06)",
+            borderRadius: 999,
+            padding: 3,
+          }}
+        >
+          {(["month", "year"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              style={{
+                appearance: "none",
+                border: 0,
+                padding: "6px 12px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                background: view === v ? "var(--ink)" : "transparent",
+                color: view === v ? "var(--bg-app)" : "var(--ink-2)",
+                cursor: "pointer",
+              }}
+            >
+              {v === "month" ? "Month" : "Year"}
+            </button>
+          ))}
         </div>
       </div>
 
+      {view === "year" ? (
+        <AnnualWrap
+          months={annualMonths}
+          year={today.getFullYear()}
+          currency={currency}
+        />
+      ) : (
+      <>
       <div style={{ padding: "14px 20px 0" }}>
         <div
           className="card"
@@ -326,6 +392,186 @@ export function WrapScreen({
           aria-label="History"
         >
           <Icon name="history" size={18} />
+        </Link>
+      </div>
+      </>
+      )}
+    </>
+  )
+}
+
+function AnnualWrap({
+  months,
+  year,
+  currency,
+}: {
+  months: MonthRow[]
+  year: number
+  currency: string
+}) {
+  const today = new Date()
+  const thisMonthIdx = today.getFullYear() === year ? today.getMonth() : 11
+  const elapsed = months.slice(0, thisMonthIdx + 1)
+  const totals = elapsed.reduce(
+    (s, m) => ({
+      saved: s.saved + m.saved,
+      gave: s.gave + m.gave,
+      lived: s.lived + m.lived,
+      total: s.total + m.total,
+    }),
+    { saved: 0, gave: 0, lived: 0, total: 0 },
+  )
+  const bestMonth = elapsed.reduce(
+    (best, m, i) => (m.saved > (best?.row.saved ?? -1) ? { row: m, i } : best),
+    null as null | { row: MonthRow; i: number },
+  )
+  const activeMonths = elapsed.filter((m) => m.total > 0).length
+  const max = Math.max(1, ...months.map((m) => m.total))
+
+  return (
+    <>
+      <div style={{ padding: "14px 20px 0" }}>
+        <div
+          className="card"
+          style={{
+            padding: 22,
+            position: "relative",
+            overflow: "hidden",
+            background: "linear-gradient(160deg, #3D5234 0%, #2A3A22 100%)",
+            color: "#F4EBD9",
+          }}
+        >
+          <div
+            className="tiny"
+            style={{
+              color: "rgba(244,235,217,0.8)",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
+            {year} disbursed
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+            <span className="serif" style={{ fontSize: 18 }}>
+              {currency}
+            </span>
+            <span className="serif" style={{ fontSize: 56, lineHeight: 1 }}>
+              {totals.total.toLocaleString()}
+            </span>
+          </div>
+          <div className="body" style={{ color: "rgba(244,235,217,0.9)", marginTop: 6 }}>
+            over <strong style={{ color: "#FFF" }}>{activeMonths}</strong>{" "}
+            month{activeMonths === 1 ? "" : "s"} of activity.
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "12px 20px 0",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 8,
+        }}
+      >
+        <WrapStat
+          label="Saved"
+          value={fmtMoney(totals.saved, currency)}
+          caption="put away"
+          tone="green"
+        />
+        <WrapStat
+          label="Gave"
+          value={fmtMoney(totals.gave, currency)}
+          caption="to people & faith"
+          tone="gold"
+        />
+        <WrapStat
+          label="Lived"
+          value={fmtMoney(totals.lived, currency)}
+          caption="on essentials"
+          tone="clay"
+        />
+      </div>
+
+      <div style={{ padding: "16px 20px 0" }}>
+        <div className="card" style={{ padding: 16 }}>
+          <div
+            className="serif"
+            style={{ fontSize: 20, lineHeight: 1.1, marginBottom: 4 }}
+          >
+            By month
+          </div>
+          {bestMonth && bestMonth.row.saved > 0 && (
+            <div className="tiny" style={{ marginBottom: 10 }}>
+              Best for savings:{" "}
+              <strong style={{ color: "var(--ink)" }}>{bestMonth.row.month}</strong>{" "}
+              · {fmtMoney(bestMonth.row.saved, currency)}.
+            </div>
+          )}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(12, 1fr)",
+              gap: 4,
+              alignItems: "end",
+              height: 96,
+            }}
+          >
+            {months.map((m, i) => {
+              const h = max > 0 ? (m.total / max) * 100 : 0
+              const isCurrent = i === thisMonthIdx
+              return (
+                <div
+                  key={m.month}
+                  title={`${m.month}: ${fmtMoney(m.total, currency)}`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    height: "100%",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: `${Math.max(h, m.total > 0 ? 4 : 0)}%`,
+                      background: isCurrent ? "var(--clay)" : "var(--green-soft)",
+                      borderRadius: 4,
+                      transition: "height 240ms ease",
+                    }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+          <div
+            className="tiny"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(12, 1fr)",
+              gap: 4,
+              marginTop: 6,
+              textAlign: "center",
+              color: "var(--ink-3)",
+            }}
+          >
+            {months.map((m) => (
+              <span key={m.month}>{m.month[0]}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 20px 28px" }}>
+        <Link
+          href="/months"
+          className="btn btn-soft btn-block"
+          aria-label="All months"
+        >
+          <Icon name="history" size={16} /> See every month
         </Link>
       </div>
     </>

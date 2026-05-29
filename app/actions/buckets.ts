@@ -6,7 +6,14 @@ import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 
 const colorEnum = z.enum(["clay", "green", "gold", "rose", "sage"])
-const kindEnum = z.enum(["essential", "future", "people", "give", "bills"])
+const kindEnum = z.enum([
+  "essential",
+  "future",
+  "people",
+  "give",
+  "bills",
+  "emergency",
+])
 
 const createSchema = z.object({
   name: z.string().min(1).max(40),

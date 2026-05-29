@@ -1,5 +1,19 @@
 export type BucketColor = "clay" | "green" | "gold" | "rose" | "sage"
-export type BucketKind = "essential" | "future" | "people" | "give" | "bills"
+export type BucketKind =
+  | "essential"
+  | "future"
+  | "people"
+  | "give"
+  | "bills"
+  | "emergency"
+
+export type PotProjection = {
+  avgPerMonth: number
+  lifetimeBalance: number
+  monthsToGoal: number | null
+  etaIso: string | null
+  goalReached: boolean
+}
 
 export type IconName =
   | "home"
@@ -44,6 +58,7 @@ export type Bucket = {
   priority: number
   kind: BucketKind
   dueDayOfMonth: number | null
+  projection?: PotProjection | null
 }
 
 export type Transaction = {

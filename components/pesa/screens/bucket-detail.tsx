@@ -16,6 +16,7 @@ export function BucketDetailScreen({
   onBack,
   onOpenDisburse,
   currency,
+  avgEssentialsPerMonth,
 }: {
   bucketId: string
   state: AppState
@@ -23,6 +24,7 @@ export function BucketDetailScreen({
   onBack: () => void
   onOpenDisburse: (id: string) => void
   currency: string
+  avgEssentialsPerMonth: number
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [editFocus, setEditFocus] = useState<"target" | undefined>(undefined)
@@ -53,6 +55,48 @@ export function BucketDetailScreen({
     if (diff === 0) return { text: "Due today", tone: "warn" as const }
     if (diff <= 3) return { text: `Due in ${diff}d`, tone: "warn" as const }
     return { text: `Due day ${bucket.dueDayOfMonth}`, tone: "muted" as const }
+  })()
+
+  const projectionBadge = (() => {
+    if (bucket.kind !== "future" && bucket.kind !== "emergency") return null
+    const p = bucket.projection
+    if (!p) return null
+    if (p.goalReached) {
+      return { text: "Goal reached", tone: "ok" as const }
+    }
+    if (p.etaIso && p.monthsToGoal != null) {
+      const eta = new Date(p.etaIso)
+      const month = eta.toLocaleString("en-US", { month: "short", year: "numeric" })
+      return {
+        text: `${fmtMoney(p.avgPerMonth, currency)}/mo · hit by ${month}`,
+        tone: "muted" as const,
+      }
+    }
+    if (p.avgPerMonth > 0) {
+      return {
+        text: `${fmtMoney(p.avgPerMonth, currency)}/mo`,
+        tone: "muted" as const,
+      }
+    }
+    return { text: "No deposits in 3 mo", tone: "warn" as const }
+  })()
+
+  const cushion = (() => {
+    if (bucket.kind !== "emergency") return null
+    if (!bucket.projection) return null
+    const balance = bucket.projection.lifetimeBalance
+    if (avgEssentialsPerMonth <= 0) {
+      return {
+        months: null as number | null,
+        balance,
+        burn: 0,
+      }
+    }
+    return {
+      months: balance / avgEssentialsPerMonth,
+      balance,
+      burn: avgEssentialsPerMonth,
+    }
   })()
 
   const openEdit = (focus?: "target") => {
@@ -88,30 +132,9 @@ export function BucketDetailScreen({
           >
             Pot · {bucket.kind}
           </div>
-          {dueBadge && (
-            <span
-              className="tiny"
-              style={{
-                padding: "2px 8px",
-                borderRadius: 999,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                background:
-                  dueBadge.tone === "warn"
-                    ? "var(--clay-soft)"
-                    : dueBadge.tone === "ok"
-                      ? "var(--green-tint)"
-                      : "rgba(33,26,18,0.06)",
-                color:
-                  dueBadge.tone === "warn"
-                    ? "var(--clay-deep)"
-                    : dueBadge.tone === "ok"
-                      ? "var(--green-deep)"
-                      : "var(--ink-2)",
-              }}
-            >
-              {dueBadge.text}
-            </span>
+          {dueBadge && <HeaderBadge text={dueBadge.text} tone={dueBadge.tone} />}
+          {projectionBadge && (
+            <HeaderBadge text={projectionBadge.text} tone={projectionBadge.tone} />
           )}
         </div>
         <button
@@ -141,6 +164,72 @@ export function BucketDetailScreen({
           </span>
           &nbsp;of&nbsp;{fmtMoney(bucket.target, currency)}&nbsp;·&nbsp;{Math.round(pct)}%
         </div>
+
+        {(bucket.kind === "future" || bucket.kind === "emergency") &&
+          bucket.projection &&
+          bucket.projection.lifetimeBalance > 0 && (
+            <div
+              className="card"
+              style={{
+                marginTop: 14,
+                padding: 12,
+                width: "100%",
+                background: "var(--green-tint)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Icon name="piggy" size={18} />
+              <div className="body" style={{ color: "var(--green-deep)", flex: 1 }}>
+                <strong style={{ color: "var(--green-deep)" }}>
+                  {fmtMoney(bucket.projection.lifetimeBalance, currency)}
+                </strong>{" "}
+                saved over all months
+                {bucket.target > 0 && !bucket.projection.goalReached && (
+                  <>
+                    {" "}
+                    · {fmtMoney(
+                      Math.max(0, bucket.target - bucket.projection.lifetimeBalance),
+                      currency,
+                    )}{" "}
+                    to goal
+                  </>
+                )}
+                .
+              </div>
+            </div>
+          )}
+
+        {cushion && (
+          <div
+            className="card"
+            style={{
+              marginTop: 10,
+              padding: 12,
+              width: "100%",
+              background: "var(--bg-elev)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Icon name="shield" size={18} />
+            <div className="body" style={{ flex: 1 }}>
+              {cushion.months == null ? (
+                <>Log a few months of essentials to size this cushion.</>
+              ) : (
+                <>
+                  <strong>{cushion.months.toFixed(1)} months</strong> of essentials
+                  covered{" "}
+                  <span style={{ color: "var(--ink-3)" }}>
+                    · {fmtMoney(cushion.burn, currency)}/mo burn
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {bucket.spent > 0 && (
           <div
@@ -324,6 +413,42 @@ export function BucketDetailScreen({
         currency={currency}
       />
     </>
+  )
+}
+
+function HeaderBadge({
+  text,
+  tone,
+}: {
+  text: string
+  tone: "ok" | "warn" | "muted"
+}) {
+  const bg =
+    tone === "warn"
+      ? "var(--clay-soft)"
+      : tone === "ok"
+        ? "var(--green-tint)"
+        : "rgba(33,26,18,0.06)"
+  const color =
+    tone === "warn"
+      ? "var(--clay-deep)"
+      : tone === "ok"
+        ? "var(--green-deep)"
+        : "var(--ink-2)"
+  return (
+    <span
+      className="tiny"
+      style={{
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        background: bg,
+        color,
+      }}
+    >
+      {text}
+    </span>
   )
 }
 

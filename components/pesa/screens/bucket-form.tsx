@@ -34,6 +34,7 @@ export const KIND_CHOICES: { value: BucketKind; label: string }[] = [
   { value: "essential", label: "Essential" },
   { value: "bills", label: "Bills" },
   { value: "future", label: "Future" },
+  { value: "emergency", label: "Emergency" },
   { value: "give", label: "Give" },
   { value: "people", label: "People" },
 ]
