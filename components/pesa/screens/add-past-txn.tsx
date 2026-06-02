@@ -13,6 +13,7 @@ export type PastTxnBucket = {
   name: string
   color: BucketColor
   icon: IconName
+  target: number
 }
 
 export function AddPastTxnSheet({
@@ -163,7 +164,13 @@ export function AddPastTxnSheet({
               <button
                 key={b.id}
                 type="button"
-                onClick={() => setBucketId(b.id)}
+                onClick={() => {
+                  setBucketId(b.id)
+                  // Pre-fill the full target — past entries are usually the
+                  // pot's standard monthly disbursement, so this is the most
+                  // useful default (the user can still edit it).
+                  setAmount(b.target)
+                }}
                 className="card"
                 style={{
                   appearance: "none",
@@ -179,8 +186,15 @@ export function AddPastTxnSheet({
                 <div className={`row-icon ${b.color}`}>
                   <Icon name={b.icon} size={16} />
                 </div>
-                <div className="serif" style={{ fontSize: 15, lineHeight: 1 }}>
-                  {b.name}
+                <div style={{ minWidth: 0 }}>
+                  <div className="serif" style={{ fontSize: 15, lineHeight: 1.1 }}>
+                    {b.name}
+                  </div>
+                  {b.target > 0 && (
+                    <div className="tiny" style={{ opacity: 0.7, marginTop: 3 }}>
+                      Target {fmtMoney(b.target, currency)}
+                    </div>
+                  )}
                 </div>
               </button>
             )

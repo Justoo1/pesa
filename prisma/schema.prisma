@@ -25,6 +25,9 @@ model User {
   salary      Int      @default(0)
   currency    String   @default("GH₵")
   monthLabel  String   @default("This month")
+  // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
+  // belongs to. When the calendar advances past it we roll the month over.
+  activeMonth String?
 
   // pesa settings flags
   roundUpsEnabled   Boolean @default(false)

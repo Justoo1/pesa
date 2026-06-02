@@ -9,6 +9,7 @@ import {
   loadPotProjections,
 } from "@/lib/insights"
 import { loadPaydayTemplate } from "@/lib/payday"
+import { ensureCurrentMonth } from "@/lib/month"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
 import { LockButton } from "@/components/pesa/lock-button"
@@ -31,6 +32,10 @@ export default async function Page() {
     redirect("/sign-in")
   }
   const userId = session.user.id
+
+  // Roll the live tally over to the current calendar month before reading it,
+  // so a new month starts with a full "left to disburse" and an updated label.
+  await ensureCurrentMonth(userId)
 
   const [
     user,

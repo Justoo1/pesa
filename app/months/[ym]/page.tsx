@@ -45,7 +45,7 @@ export default async function MonthDetailPage({
     prisma.bucket.findMany({
       where: { userId, archivedAt: null },
       orderBy: { priority: "asc" },
-      select: { id: true, name: true, color: true, icon: true },
+      select: { id: true, name: true, color: true, icon: true, target: true },
     }),
   ])
   const currency = user.currency
