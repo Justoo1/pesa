@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
 import { Sheet } from "../ui"
 import type { BucketColor, IconName } from "../types"
-import { disburse } from "@/app/actions/transactions"
+import { disburseMany } from "@/app/actions/transactions"
 
 export type PastTxnBucket = {
   id: string
@@ -22,6 +22,7 @@ export function AddPastTxnSheet({
   ym,
   buckets,
   currency,
+  filledByMonth,
 }: {
   open: boolean
   onClose: () => void
@@ -31,10 +32,13 @@ export function AddPastTxnSheet({
   ym?: string
   buckets: PastTxnBucket[]
   currency: string
+  // { "YYYY-MM": { bucketId: filledAmount } } — used to grey out pots that have
+  // already hit their target for the month being edited.
+  filledByMonth?: Record<string, Record<string, number>>
 }) {
   const router = useRouter()
-  const [bucketId, setBucketId] = useState<string>("")
-  const [amount, setAmount] = useState(0)
+  // bucketId -> amount for every pot the user has toggled on.
+  const [selected, setSelected] = useState<Record<string, number>>({})
   const [note, setNote] = useState("")
   const [method, setMethod] = useState("MoMo")
   const [error, setError] = useState<string | null>(null)
@@ -64,15 +68,60 @@ export function AddPastTxnSheet({
   // catching up on a forgotten paycheck.
   const [date, setDate] = useState(maxDate)
 
-  // Re-anchor the date to the selected month whenever it changes (so picking
-  // "March" after "April" doesn't leave you with an out-of-range April date).
-  useEffect(() => {
+  // When the target month changes, re-anchor the date into that month (so
+  // picking "March" after "April" doesn't leave an out-of-range April date)
+  // and clear the selection (a pot full in April may not be full in March).
+  // Adjusting state during render is React's recommended pattern here — it
+  // avoids an extra effect pass and a flash of stale UI.
+  const [prevYm, setPrevYm] = useState(activeYm)
+  if (prevYm !== activeYm) {
+    setPrevYm(activeYm)
     setDate(maxDate)
-  }, [maxDate])
+    setSelected({})
+  }
+
+  const filledMap = filledByMonth?.[activeYm] ?? {}
+  const fillState = (b: PastTxnBucket) => {
+    const filled = filledMap[b.id] ?? 0
+    const isFull = b.target > 0 && filled >= b.target
+    const remaining = Math.max(0, b.target - filled)
+    // Suggested amount when toggling on: whatever's left to reach target, or
+    // the full target for pots with nothing logged / no remaining shortfall.
+    const suggested = remaining > 0 ? remaining : b.target
+    return { filled, isFull, remaining, suggested }
+  }
+
+  const toggle = (b: PastTxnBucket) => {
+    setSelected((prev) => {
+      if (b.id in prev) {
+        const next = { ...prev }
+        delete next[b.id]
+        return next
+      }
+      return { ...prev, [b.id]: fillState(b).suggested }
+    })
+  }
+
+  const setAmountFor = (id: string, raw: string) => {
+    const v = raw.replace(/[^0-9]/g, "")
+    setSelected((prev) => ({ ...prev, [id]: v ? parseInt(v, 10) : 0 }))
+  }
+
+  const fillableBuckets = buckets.filter((b) => !fillState(b).isFull)
+
+  const fillAll = () => {
+    const next: Record<string, number> = {}
+    for (const b of fillableBuckets) next[b.id] = fillState(b).suggested
+    setSelected(next)
+  }
+
+  const entries = Object.entries(selected)
+    .filter(([, a]) => a > 0)
+    .map(([bucketId, amount]) => ({ bucketId, amount }))
+  const total = entries.reduce((s, e) => s + e.amount, 0)
 
   const reset = () => {
-    setBucketId("")
-    setAmount(0)
+    setSelected({})
     setNote("")
     setMethod("MoMo")
     setDate(maxDate)
@@ -82,12 +131,8 @@ export function AddPastTxnSheet({
 
   const submit = () => {
     setError(null)
-    if (!bucketId) {
-      setError("Pick a pot")
-      return
-    }
-    if (amount <= 0) {
-      setError("Enter an amount")
+    if (entries.length === 0) {
+      setError("Pick at least one pot")
       return
     }
     const [y, m, d] = date.split("-").map(Number)
@@ -97,7 +142,7 @@ export function AddPastTxnSheet({
 
     startTransition(async () => {
       try {
-        await disburse({ bucketId, amount, note: note || undefined, method, occurredAt })
+        await disburseMany({ entries, note: note || undefined, method, occurredAt })
         reset()
         onClose()
         router.refresh()
@@ -135,7 +180,7 @@ export function AddPastTxnSheet({
           className="serif"
           style={{ fontSize: 22, lineHeight: 1.1, padding: "0 4px 12px" }}
         >
-          Log a transfer you <span className="italic">forgot.</span>
+          Log transfers you <span className="italic">forgot.</span>
         </div>
 
         {!lockedYm && (
@@ -156,68 +201,153 @@ export function AddPastTxnSheet({
           </>
         )}
 
-        <Label>Pot</Label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-          {buckets.map((b) => {
-            const selected = b.id === bucketId
-            return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 6,
+          }}
+        >
+          <Label>Pots</Label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {entries.length > 0 && (
               <button
-                key={b.id}
                 type="button"
-                onClick={() => {
-                  setBucketId(b.id)
-                  // Pre-fill the full target — past entries are usually the
-                  // pot's standard monthly disbursement, so this is the most
-                  // useful default (the user can still edit it).
-                  setAmount(b.target)
-                }}
-                className="card"
-                style={{
-                  appearance: "none",
-                  border: selected ? "2px solid var(--ink)" : "1px solid var(--line)",
-                  textAlign: "left",
-                  padding: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  cursor: "pointer",
-                }}
+                className="chip"
+                onClick={() => setSelected({})}
+                style={{ background: "rgba(33,26,18,0.06)", color: "var(--ink)" }}
               >
-                <div className={`row-icon ${b.color}`}>
-                  <Icon name={b.icon} size={16} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div className="serif" style={{ fontSize: 15, lineHeight: 1.1 }}>
-                    {b.name}
-                  </div>
-                  {b.target > 0 && (
-                    <div className="tiny" style={{ opacity: 0.7, marginTop: 3 }}>
-                      Target {fmtMoney(b.target, currency)}
-                    </div>
-                  )}
-                </div>
+                Clear
               </button>
-            )
-          })}
+            )}
+            {fillableBuckets.length > 0 && (
+              <button
+                type="button"
+                className="chip"
+                onClick={fillAll}
+                style={{ background: "var(--ink)", color: "var(--bg-app)" }}
+              >
+                Fill all to target
+              </button>
+            )}
+          </div>
         </div>
 
-        <Label>Amount</Label>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 14 }}>
-          <span className="serif" style={{ fontSize: 18, color: "var(--ink-3)" }}>
-            {currency}
-          </span>
-          <input
-            className="input num"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={amount === 0 ? "" : amount}
-            placeholder="0"
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9]/g, "")
-              setAmount(v ? parseInt(v, 10) : 0)
-            }}
-            style={{ fontSize: 22, fontWeight: 600, flex: 1 }}
-          />
+        <div style={{ marginBottom: 14 }}>
+          {buckets.map((b) => {
+            const { filled, isFull } = fillState(b)
+            const isSelected = b.id in selected
+            const amt = selected[b.id] ?? 0
+            const meta = isFull
+              ? `Filled · ${fmtMoney(filled, currency)}`
+              : filled > 0
+                ? `${fmtMoney(filled, currency)} of ${fmtMoney(b.target, currency)}`
+                : b.target > 0
+                  ? `Target ${fmtMoney(b.target, currency)}`
+                  : "No target"
+            return (
+              <div
+                key={b.id}
+                className="card"
+                style={{
+                  border: isSelected
+                    ? "2px solid var(--ink)"
+                    : "1px solid var(--line)",
+                  padding: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 8,
+                  opacity: isFull ? 0.55 : 1,
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={isFull}
+                  onClick={() => toggle(b)}
+                  style={{
+                    appearance: "none",
+                    border: 0,
+                    background: "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: "left",
+                    padding: 4,
+                    cursor: isFull ? "default" : "pointer",
+                  }}
+                >
+                  <div className={`row-icon ${b.color}`}>
+                    <Icon name={b.icon} size={16} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="serif" style={{ fontSize: 15, lineHeight: 1.1 }}>
+                      {b.name}
+                    </div>
+                    <div className="tiny" style={{ opacity: 0.7, marginTop: 3 }}>
+                      {meta}
+                    </div>
+                  </div>
+                </button>
+
+                {isFull ? (
+                  <span
+                    className="tiny"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontWeight: 700,
+                      color: "var(--green-deep)",
+                      paddingRight: 6,
+                    }}
+                  >
+                    <Icon name="check" size={13} /> Full
+                  </span>
+                ) : isSelected ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 4,
+                      width: 116,
+                    }}
+                  >
+                    <span
+                      className="serif"
+                      style={{ fontSize: 13, color: "var(--ink-3)" }}
+                    >
+                      {currency}
+                    </span>
+                    <input
+                      className="input num"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={amt === 0 ? "" : amt}
+                      placeholder="0"
+                      onChange={(e) => setAmountFor(b.id, e.target.value)}
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 600,
+                        width: "100%",
+                        padding: "6px 8px",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <span
+                    className="tiny"
+                    style={{ color: "var(--ink-3)", paddingRight: 8 }}
+                  >
+                    Tap to add
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         <Label>Date</Label>
@@ -270,7 +400,11 @@ export function AddPastTxnSheet({
           disabled={pending}
         >
           <Icon name="send" size={16} />{" "}
-          {pending ? "Saving…" : `Save ${amount > 0 ? fmtMoney(amount, currency) : ""}`.trim()}
+          {pending
+            ? "Saving…"
+            : entries.length > 0
+              ? `Add ${entries.length} transfer${entries.length === 1 ? "" : "s"} · ${fmtMoney(total, currency)}`
+              : "Add transfers"}
         </button>
       </div>
     </Sheet>

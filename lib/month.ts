@@ -4,6 +4,28 @@ function ymOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
 
+/**
+ * How much has been disbursed into each pot, per calendar month. Returns a
+ * nested map: { "YYYY-MM": { bucketId: filledAmount } } summing only positive
+ * inflows (top-ups + transfers in). Used by the "add to a past month" sheet to
+ * disable pots that already hit their target for the month being edited.
+ */
+export async function loadFilledByMonth(
+  userId: string,
+): Promise<Record<string, Record<string, number>>> {
+  const txns = await prisma.transaction.findMany({
+    where: { userId, amount: { gt: 0 } },
+    select: { bucketId: true, amount: true, occurredAt: true },
+  })
+  const out: Record<string, Record<string, number>> = {}
+  for (const t of txns) {
+    const ym = ymOf(t.occurredAt)
+    const inner = (out[ym] ??= {})
+    inner[t.bucketId] = (inner[t.bucketId] ?? 0) + t.amount
+  }
+  return out
+}
+
 function longLabel(d: Date): string {
   return d.toLocaleString("en-US", { month: "long", year: "numeric" })
 }

@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
@@ -24,10 +25,13 @@ function isInCurrentCalendarMonth(d: Date) {
 export async function disburse(input: z.infer<typeof disburseSchema>) {
   const userId = await requireUserId()
   const { bucketId, amount, note, method, occurredAt } = disburseSchema.parse(input)
-  // Round-ups only make sense for transactions in the current month — backdated
-  // entries should land cleanly in their own month without spilling a remainder
-  // into today's "future" pot.
-  const allowRoundUp = !occurredAt || isInCurrentCalendarMonth(occurredAt)
+  // `allocated`/`spent` are a live tally for the *current* calendar month only.
+  // A backdated entry belongs to its own past month, so it lands as a
+  // Transaction (history) without bumping this month's live tally — otherwise
+  // logging a forgotten paycheck would wrongly shrink today's "left to disburse".
+  // Round-ups follow the same rule (no remainder spilling into today's pots).
+  const inCurrentMonth = !occurredAt || isInCurrentCalendarMonth(occurredAt)
+  const allowRoundUp = inCurrentMonth
 
   const [bucket, user, savingsBucket] = await Promise.all([
     prisma.bucket.findFirst({
@@ -50,7 +54,7 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   ])
   if (!bucket) throw new Error("Bucket not found")
 
-  const ops = [
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.transaction.create({
       data: {
         userId,
@@ -61,11 +65,15 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
         ...(occurredAt ? { occurredAt } : {}),
       },
     }),
-    prisma.bucket.update({
-      where: { id: bucketId },
-      data: { allocated: { increment: amount } },
-    }),
   ]
+  if (inCurrentMonth) {
+    ops.push(
+      prisma.bucket.update({
+        where: { id: bucketId },
+        data: { allocated: { increment: amount } },
+      }),
+    )
+  }
 
   // Round-up: if enabled, route the rounding remainder to the first future-kind
   // pot (typically "Savings"). Skip when the target pot is the savings pot
@@ -130,6 +138,76 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
     revalidatePath(`/months/${ym}`)
   }
   return { roundUp }
+}
+
+const disburseManySchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        bucketId: z.string().min(1),
+        amount: z.number().int().positive(),
+      }),
+    )
+    .min(1)
+    .max(50),
+  note: z.string().max(200).optional(),
+  method: z.string().max(40).optional(),
+  occurredAt: z.coerce.date().optional(),
+})
+
+/**
+ * Disburse to several pots in one shot — used by the "add to a past month"
+ * sheet's bulk mode. Each entry becomes its own Transaction; the live
+ * `allocated` tally is only bumped for current-month entries (see `disburse`).
+ * Round-ups and bucket-hit pushes are intentionally skipped here — bulk past
+ * entries are a catch-up, not a live payday ritual.
+ */
+export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
+  const userId = await requireUserId()
+  const { entries, note, method, occurredAt } = disburseManySchema.parse(input)
+  const inCurrentMonth = !occurredAt || isInCurrentCalendarMonth(occurredAt)
+
+  // Keep only entries for pots this user actually owns.
+  const owned = await prisma.bucket.findMany({
+    where: { userId, archivedAt: null, id: { in: entries.map((e) => e.bucketId) } },
+    select: { id: true },
+  })
+  const ownedIds = new Set(owned.map((b) => b.id))
+  const valid = entries.filter((e) => ownedIds.has(e.bucketId))
+  if (valid.length === 0) throw new Error("No valid pots")
+
+  const ops: Prisma.PrismaPromise<unknown>[] = []
+  for (const e of valid) {
+    ops.push(
+      prisma.transaction.create({
+        data: {
+          userId,
+          bucketId: e.bucketId,
+          amount: e.amount,
+          note: note || "Top-up",
+          method: method || "MoMo",
+          ...(occurredAt ? { occurredAt } : {}),
+        },
+      }),
+    )
+    if (inCurrentMonth) {
+      ops.push(
+        prisma.bucket.update({
+          where: { id: e.bucketId },
+          data: { allocated: { increment: e.amount } },
+        }),
+      )
+    }
+  }
+  await prisma.$transaction(ops)
+
+  revalidatePath("/")
+  if (occurredAt) {
+    const ym = `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(2, "0")}`
+    revalidatePath("/months")
+    revalidatePath(`/months/${ym}`)
+  }
+  return { applied: valid.length }
 }
 
 const paydayTemplateSchema = z.object({

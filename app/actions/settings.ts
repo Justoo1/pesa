@@ -24,14 +24,24 @@ export async function updateProfile(input: z.infer<typeof profileSchema>) {
 
 export async function resetMonth() {
   const userId = await requireUserId()
+  // Only clear *this* calendar month — past months are history and must
+  // survive a reset (they power /months, insights and the annual wrap).
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
   await prisma.$transaction([
-    prisma.transaction.deleteMany({ where: { userId } }),
+    prisma.transaction.deleteMany({
+      where: { userId, occurredAt: { gte: start, lt: end } },
+    }),
     prisma.bucket.updateMany({
       where: { userId },
       data: { allocated: 0, spent: 0 },
     }),
   ])
   revalidatePath("/")
+  revalidatePath("/months")
+  revalidatePath(`/months/${ym}`)
 }
 
 const roundUpsSchema = z.object({

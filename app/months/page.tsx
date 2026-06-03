@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { loadAllMonths } from "@/lib/insights"
+import { loadFilledByMonth } from "@/lib/month"
 import { fmtMoney } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
 import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
@@ -14,7 +15,7 @@ export default async function MonthsPage() {
   if (!session?.user?.id) redirect("/sign-in")
   const userId = session.user.id
 
-  const [user, months, activeBuckets] = await Promise.all([
+  const [user, months, activeBuckets, filledByMonth] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { currency: true },
@@ -25,6 +26,7 @@ export default async function MonthsPage() {
       orderBy: { priority: "asc" },
       select: { id: true, name: true, color: true, icon: true, target: true },
     }),
+    loadFilledByMonth(userId),
   ])
   const currency = user.currency
 
@@ -60,6 +62,7 @@ export default async function MonthsPage() {
               <AddPastTxnButton
                 buckets={activeBuckets as Parameters<typeof AddPastTxnButton>[0]["buckets"]}
                 currency={currency}
+                filledByMonth={filledByMonth}
               />
             </div>
             <div

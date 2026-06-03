@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { fmtMoney, fmtTxnDate } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
 import type { BucketColor, IconName } from "@/components/pesa/types"
+import { loadFilledByMonth } from "@/lib/month"
 import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
 
 export const dynamic = "force-dynamic"
@@ -30,7 +31,7 @@ export default async function MonthDetailPage({
   const end = new Date(year, month, 1)
   const label = start.toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  const [user, txns, activeBuckets] = await Promise.all([
+  const [user, txns, activeBuckets, filledByMonth] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { currency: true },
@@ -47,6 +48,7 @@ export default async function MonthDetailPage({
       orderBy: { priority: "asc" },
       select: { id: true, name: true, color: true, icon: true, target: true },
     }),
+    loadFilledByMonth(userId),
   ])
   const currency = user.currency
 
@@ -92,6 +94,7 @@ export default async function MonthDetailPage({
                   ym={ym}
                   buckets={activeBuckets as Parameters<typeof AddPastTxnButton>[0]["buckets"]}
                   currency={currency}
+                  filledByMonth={filledByMonth}
                 />
               ) : (
                 <span style={{ width: 44 }} />

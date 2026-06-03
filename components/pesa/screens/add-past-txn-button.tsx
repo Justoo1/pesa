@@ -8,6 +8,7 @@ export function AddPastTxnButton({
   ym,
   buckets,
   currency,
+  filledByMonth,
 }: {
   // Omit to let the user pick any past month from inside the sheet (used on
   // the /months index). Provide it to lock the sheet to a specific month
@@ -15,6 +16,9 @@ export function AddPastTxnButton({
   ym?: string
   buckets: PastTxnBucket[]
   currency: string
+  // { "YYYY-MM": { bucketId: filledAmount } } — lets the sheet grey out pots
+  // already full for the month being edited.
+  filledByMonth?: Record<string, Record<string, number>>
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -33,6 +37,7 @@ export function AddPastTxnButton({
         ym={ym}
         buckets={buckets}
         currency={currency}
+        filledByMonth={filledByMonth}
       />
     </>
   )
