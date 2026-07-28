@@ -28,6 +28,11 @@ model User {
   // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
   // belongs to. When the calendar advances past it we roll the month over.
   activeMonth String?
+  // Persistent running balance simulating a real bank account. Credited by
+  // income sources (on month rollover) and manual top-ups; debited whenever
+  // money is sent to a pot or logged as a personal spend. Never reset by the
+  // monthly bucket-tally rollover.
+  bankBalance Int      @default(0)
 
   // pesa settings flags
   roundUpsEnabled   Boolean @default(false)
@@ -52,6 +57,8 @@ model User {
   buckets           Bucket[]
   txns              Transaction[]
   pushSubscriptions PushSubscription[]
+  incomeSources     IncomeSource[]
+  bankTxns          BankTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -132,6 +139,35 @@ model Transaction {
   @@index([userId, occurredAt])
   @@index([bucketId, occurredAt])
   @@index([transferId])
+}
+
+model IncomeSource {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  amount    Int
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BankTransaction {
+  id         String   @id @default(cuid())
+  userId     String
+  // positive = credit (income/manual add), negative = debit (pot disburse/spend)
+  amount     Int
+  kind       String
+  note       String
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
 }
 
 model PushSubscription {

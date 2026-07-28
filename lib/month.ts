@@ -78,7 +78,15 @@ export async function ensureCurrentMonth(userId: string): Promise<void> {
   }
 
   // New calendar month: start fresh. Zero the live tally and relabel; keep the
-  // ledger so the prior month still shows up under history/insights.
+  // ledger so the prior month still shows up under history/insights. Also
+  // credit the bank balance by this payday's income sources, simulating
+  // salary landing in the account.
+  const activeIncome = await prisma.incomeSource.findMany({
+    where: { userId, active: true },
+    select: { amount: true },
+  })
+  const income = activeIncome.reduce((s, a) => s + a.amount, 0)
+
   await prisma.$transaction([
     prisma.bucket.updateMany({
       where: { userId },
@@ -86,7 +94,18 @@ export async function ensureCurrentMonth(userId: string): Promise<void> {
     }),
     prisma.user.update({
       where: { id: userId },
-      data: { activeMonth: currentYm, monthLabel: longLabel(now) },
+      data: {
+        activeMonth: currentYm,
+        monthLabel: longLabel(now),
+        ...(income > 0 ? { bankBalance: { increment: income } } : {}),
+      },
     }),
+    ...(income > 0
+      ? [
+          prisma.bankTransaction.create({
+            data: { userId, amount: income, kind: "income", note: "Payday credit" },
+          }),
+        ]
+      : []),
   ])
 }

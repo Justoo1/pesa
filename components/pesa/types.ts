@@ -72,6 +72,24 @@ export type Transaction = {
   transferId: string | null
 }
 
+export type IncomeSource = {
+  id: string
+  name: string
+  amount: number
+  active: boolean
+}
+
+export type BankTransactionKind = "income" | "manual" | "disburse" | "spend"
+
+export type BankTransaction = {
+  id: string
+  amount: number
+  kind: BankTransactionKind
+  note: string
+  /** ISO string when serialised across the server/client boundary */
+  occurredAt: string
+}
+
 export type UserProfile = {
   id: string
   displayName: string
@@ -110,6 +128,7 @@ export type MonthRow = {
 
 export type AppState = {
   salary: number
+  bankBalance: number
   buckets: Bucket[]
   ledger: Transaction[]
 }

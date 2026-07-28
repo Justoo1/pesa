@@ -10,7 +10,6 @@ import { signOut } from "@/auth"
 
 const profileSchema = z.object({
   displayName: z.string().min(1).max(60).optional(),
-  salary: z.number().int().nonnegative().optional(),
   currency: z.string().min(1).max(8).optional(),
   monthLabel: z.string().min(1).max(40).optional(),
 })

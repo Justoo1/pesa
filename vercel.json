@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/payday-reminder",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/bills-due-reminder",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-wrap",
+      "schedule": "0 9 1 * *"
+    }
+  ]
+}

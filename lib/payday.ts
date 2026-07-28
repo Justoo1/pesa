@@ -43,8 +43,9 @@ export async function applyPaydayTemplateForUser(
   const valid = drafts.filter((d) => known.has(d.bucketId) && d.amount > 0)
   if (valid.length === 0) return { applied: 0 }
 
-  await prisma.$transaction(
-    valid.flatMap((d) => [
+  const total = valid.reduce((s, d) => s + d.amount, 0)
+  await prisma.$transaction([
+    ...valid.flatMap((d) => [
       prisma.transaction.create({
         data: {
           userId,
@@ -59,7 +60,14 @@ export async function applyPaydayTemplateForUser(
         data: { allocated: { increment: d.amount } },
       }),
     ]),
-  )
+    prisma.user.update({
+      where: { id: userId },
+      data: { bankBalance: { decrement: total } },
+    }),
+    prisma.bankTransaction.create({
+      data: { userId, amount: -total, kind: "disburse", note: "Payday replay" },
+    }),
+  ])
   return { applied: valid.length }
 }
 

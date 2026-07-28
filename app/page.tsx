@@ -10,16 +10,20 @@ import {
 } from "@/lib/insights"
 import { loadPaydayTemplate } from "@/lib/payday"
 import { ensureCurrentMonth } from "@/lib/month"
+import { loadMonthlyBankSpend } from "@/lib/bank"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
 import { LockButton } from "@/components/pesa/lock-button"
 import { OnboardingShell } from "@/components/pesa/onboarding/walkthrough"
 import type {
   AppState,
+  BankTransaction,
+  BankTransactionKind,
   Bucket,
   BucketColor,
   BucketKind,
   IconName,
+  IncomeSource,
   Transaction,
   UserProfile,
 } from "@/components/pesa/types"
@@ -49,6 +53,9 @@ export default async function Page() {
     avgEssentialsPerMonth,
     annualMonths,
     filledStreak,
+    incomeSources,
+    bankLedger,
+    monthlyBankSpend,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -71,6 +78,7 @@ export default async function Page() {
         pushBillsDueOn: true,
         autoPaydayOn: true,
         onboardedAt: true,
+        bankBalance: true,
       },
     }),
     prisma.bucket.findMany({
@@ -92,6 +100,16 @@ export default async function Page() {
     loadAvgEssentialsPerMonth(userId),
     loadAnnualMonths(userId, new Date().getFullYear()),
     loadFilledStreak(userId),
+    prisma.incomeSource.findMany({
+      where: { userId },
+      orderBy: { order: "asc" },
+    }),
+    prisma.bankTransaction.findMany({
+      where: { userId },
+      orderBy: { occurredAt: "desc" },
+      take: 100,
+    }),
+    loadMonthlyBankSpend(userId),
   ])
 
   const profile: UserProfile = {
@@ -139,8 +157,24 @@ export default async function Page() {
     transferId: t.transferId,
   }))
 
+  const incomeSourcesClient: IncomeSource[] = incomeSources.map((s) => ({
+    id: s.id,
+    name: s.name,
+    amount: s.amount,
+    active: s.active,
+  }))
+
+  const bankLedgerClient: BankTransaction[] = bankLedger.map((t) => ({
+    id: t.id,
+    amount: t.amount,
+    kind: t.kind as BankTransactionKind,
+    note: t.note,
+    occurredAt: t.occurredAt.toISOString(),
+  }))
+
   const initialState: AppState = {
     salary: profile.salary,
+    bankBalance: user.bankBalance,
     buckets: bucketsClient,
     ledger: ledgerClient,
   }
@@ -189,6 +223,9 @@ export default async function Page() {
                 avgEssentialsPerMonth={avgEssentialsPerMonth}
                 annualMonths={annualMonths}
                 filledStreak={filledStreak}
+                incomeSources={incomeSourcesClient}
+                bankLedger={bankLedgerClient}
+                monthlyBankSpend={monthlyBankSpend}
               />
             </div>
           </div>

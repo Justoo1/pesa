@@ -4,11 +4,18 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
-import type { Action, AppState, IconName, UserProfile } from "../types"
+import type {
+  Action,
+  AppState,
+  IconName,
+  IncomeSource as IncomeSourceType,
+  UserProfile,
+} from "../types"
 import Link from "next/link"
 import { AddPotSheet } from "./add-pot"
 import { EditPotSheet } from "./edit-pot"
 import { EditProfileSheet } from "./edit-profile"
+import { IncomeSourcesSheet } from "./income-sources"
 import { PaydayPrefsSheet } from "./payday-prefs"
 import { RoundUpsSheet } from "./round-ups"
 import { AppLockSheet } from "./app-lock"
@@ -331,13 +338,16 @@ function SettingsPanel({
   currency,
   salary,
   profile,
+  incomeSources,
 }: {
   currency: string
   salary: number
   profile: UserProfile
+  incomeSources: IncomeSourceType[]
 }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
+  const [incomeOpen, setIncomeOpen] = useState(false)
   const [paydayOpen, setPaydayOpen] = useState(false)
   const [lockOpen, setLockOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -381,9 +391,9 @@ function SettingsPanel({
           )}
           <SettingRow
             icon="wallet"
-            label="Salary"
+            label="Income sources"
             value={fmtMoney(salary, currency)}
-            onClick={openEdit}
+            onClick={() => setIncomeOpen(true)}
           />
           <SettingRow
             icon="tag"
@@ -485,6 +495,12 @@ function SettingsPanel({
         onClose={() => setEditOpen(false)}
         profile={profile}
       />
+      <IncomeSourcesSheet
+        open={incomeOpen}
+        onClose={() => setIncomeOpen(false)}
+        incomeSources={incomeSources}
+        currency={currency}
+      />
       <PaydayPrefsSheet
         open={paydayOpen}
         onClose={() => setPaydayOpen(false)}
@@ -531,12 +547,14 @@ export function MoreScreen({
   currency,
   salary,
   profile,
+  incomeSources,
 }: {
   state: AppState
   dispatch: (a: Action) => void
   currency: string
   salary: number
   profile: UserProfile
+  incomeSources: IncomeSourceType[]
 }) {
   const [tab, setTab] = useState<"setup" | "settings">("setup")
 
@@ -579,7 +597,12 @@ export function MoreScreen({
         />
       )}
       {tab === "settings" && (
-        <SettingsPanel currency={currency} salary={salary} profile={profile} />
+        <SettingsPanel
+          currency={currency}
+          salary={salary}
+          profile={profile}
+          incomeSources={incomeSources}
+        />
       )}
     </>
   )

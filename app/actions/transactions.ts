@@ -72,6 +72,18 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
         where: { id: bucketId },
         data: { allocated: { increment: amount } },
       }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { bankBalance: { decrement: amount } },
+      }),
+      prisma.bankTransaction.create({
+        data: {
+          userId,
+          amount: -amount,
+          kind: "disburse",
+          note: `Sent to ${bucket.name}`,
+        },
+      }),
     )
   }
 
@@ -103,6 +115,13 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
         prisma.bucket.update({
           where: { id: savingsBucket.id },
           data: { allocated: { increment: roundUp } },
+        }),
+        prisma.user.update({
+          where: { id: userId },
+          data: { bankBalance: { decrement: roundUp } },
+        }),
+        prisma.bankTransaction.create({
+          data: { userId, amount: -roundUp, kind: "disburse", note: "Round-up" },
         }),
       )
     }
@@ -198,6 +217,18 @@ export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
         }),
       )
     }
+  }
+  if (inCurrentMonth) {
+    const total = valid.reduce((s, e) => s + e.amount, 0)
+    ops.push(
+      prisma.user.update({
+        where: { id: userId },
+        data: { bankBalance: { decrement: total } },
+      }),
+      prisma.bankTransaction.create({
+        data: { userId, amount: -total, kind: "disburse", note: "Bulk top-up" },
+      }),
+    )
   }
   await prisma.$transaction(ops)
 

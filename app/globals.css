@@ -186,7 +186,7 @@ p { margin: 0; }
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid rgba(225,213,184,0.6);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-items: stretch;
   padding: 8px 4px 24px;
 }

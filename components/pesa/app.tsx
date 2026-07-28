@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation"
 import type {
   Action,
   AppState,
+  BankTransaction,
+  IncomeSource,
   MonthRow,
   UserProfile,
 } from "./types"
 import { fmtMoney } from "./format"
 import { TabBar, Toast, type TabId } from "./ui"
 import { HomeScreen } from "./screens/home"
+import { BankScreen } from "./screens/bank"
 import { DisburseFlow } from "./screens/disburse"
 import { BucketDetailScreen } from "./screens/bucket-detail"
 import { InsightsScreen } from "./screens/insights"
@@ -187,6 +190,9 @@ export function PesaApp({
   avgEssentialsPerMonth,
   annualMonths,
   filledStreak,
+  incomeSources,
+  bankLedger,
+  monthlyBankSpend,
 }: {
   initialState: AppState
   profile: UserProfile
@@ -196,6 +202,9 @@ export function PesaApp({
   avgEssentialsPerMonth: number
   annualMonths: MonthRow[]
   filledStreak: number
+  incomeSources: IncomeSource[]
+  bankLedger: BankTransaction[]
+  monthlyBankSpend: number
 }) {
   const router = useRouter()
   const [state, dispatch] = useReducer(appReducer, initialState)
@@ -355,6 +364,15 @@ export function PesaApp({
         monthLabel={profile.monthLabel}
       />
     )
+  } else if (tab === "bank") {
+    content = (
+      <BankScreen
+        state={state}
+        bankLedger={bankLedger}
+        currency={profile.currency}
+        monthlyBankSpend={monthlyBankSpend}
+      />
+    )
   } else if (tab === "insights") {
     content = (
       <InsightsScreen
@@ -384,6 +402,7 @@ export function PesaApp({
         currency={profile.currency}
         salary={state.salary}
         profile={profile}
+        incomeSources={incomeSources}
       />
     )
   }

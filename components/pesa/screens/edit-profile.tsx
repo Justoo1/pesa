@@ -31,20 +31,17 @@ function EditProfileContent({
 }) {
   const router = useRouter()
   const [displayName, setDisplayName] = useState(profile.displayName)
-  const [salaryText, setSalaryText] = useState(String(profile.salary))
   const [currency, setCurrency] = useState(profile.currency)
   const [monthLabel, setMonthLabel] = useState(profile.monthLabel)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const submit = () => {
-    const salary = parseInt(salaryText.replace(/[^0-9]/g, ""), 10) || 0
     setError(null)
     startTransition(async () => {
       try {
         await updateProfile({
           displayName: displayName.trim() || undefined,
-          salary,
           currency: currency.trim() || undefined,
           monthLabel: monthLabel.trim() || undefined,
         })
@@ -90,19 +87,6 @@ function EditProfileContent({
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="What should we call you?"
             maxLength={60}
-          />
-        </div>
-
-        <div>
-          <div className="label" style={{ marginBottom: 6 }}>
-            Monthly salary
-          </div>
-          <input
-            className="input num"
-            inputMode="numeric"
-            value={salaryText}
-            onChange={(e) => setSalaryText(e.target.value.replace(/[^0-9]/g, ""))}
-            placeholder="0"
           />
         </div>
 
