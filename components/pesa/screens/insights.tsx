@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import { fmtMoney } from "../format"
+import { Icon } from "../icons"
 import { Ring } from "../ui"
 import { MilestoneBanner } from "../milestone-banner"
+import { NetWorthDetailSheet } from "./net-worth-detail"
 import type { AppState, BucketColor, MonthRow } from "../types"
 
 export function InsightsScreen({
@@ -18,6 +20,7 @@ export function InsightsScreen({
   netWorth: number
 }) {
   const [view, setView] = useState<"saved" | "all">("all")
+  const [netWorthOpen, setNetWorthOpen] = useState(false)
   const max =
     view === "saved"
       ? Math.max(1, ...months.map((m) => m.saved))
@@ -334,23 +337,39 @@ export function InsightsScreen({
       </div>
 
       <div style={{ padding: "20px 20px 28px" }}>
-        <div
+        <button
+          type="button"
+          onClick={() => setNetWorthOpen(true)}
           className="card"
           style={{
+            width: "100%",
+            appearance: "none",
+            border: 0,
+            textAlign: "left",
+            cursor: "pointer",
             padding: 16,
             background: "linear-gradient(135deg, #FBF5E7 0%, #F1E1B8 100%)",
           }}
         >
           <div
-            className="tiny"
             style={{
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              fontWeight: 700,
-              color: "#6E4F12",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
-            Estimated net worth
+            <div
+              className="tiny"
+              style={{
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                fontWeight: 700,
+                color: "#6E4F12",
+              }}
+            >
+              Estimated net worth
+            </div>
+            <Icon name="chevron" size={14} />
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 6 }}>
             <span className="serif" style={{ fontSize: 14, color: "#6E4F12" }}>
@@ -365,8 +384,18 @@ export function InsightsScreen({
               ? `↑ ${fmtMoney(avgSaved, currency)}/mo on average`
               : "Build up savings to see a trend."}
           </div>
-        </div>
+        </button>
       </div>
+
+      <NetWorthDetailSheet
+        open={netWorthOpen}
+        onClose={() => setNetWorthOpen(false)}
+        state={state}
+        months={months}
+        currency={currency}
+        netWorth={netWorth}
+        avgSaved={avgSaved}
+      />
     </>
   )
 }

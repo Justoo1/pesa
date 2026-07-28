@@ -117,14 +117,15 @@ export async function loadInsights(
     row.total += t.amount
   }
 
-  // Net worth = what's actually sitting in future/emergency pots right now
-  // (allocated less spent), not the lifetime inflow.
-  const futureBuckets = await prisma.bucket.aggregate({
-    where: { userId, kind: { in: PROJECTABLE_KINDS }, archivedAt: null },
-    _sum: { allocated: true, spent: true },
+  // Net worth = all-time balance of every active future/emergency pot (every
+  // signed txn ever attached to one, mirroring each pot's own
+  // `projection.lifetimeBalance`) — NOT `allocated - spent`, which is only a
+  // live tally that `ensureCurrentMonth` zeroes every calendar month.
+  const netWorthAgg = await prisma.transaction.aggregate({
+    where: { userId, bucket: { kind: { in: PROJECTABLE_KINDS }, archivedAt: null } },
+    _sum: { amount: true },
   })
-  const netWorth =
-    (futureBuckets._sum.allocated ?? 0) - (futureBuckets._sum.spent ?? 0)
+  const netWorth = netWorthAgg._sum.amount ?? 0
 
   return { months, netWorth }
 }
