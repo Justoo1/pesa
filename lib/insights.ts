@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/db"
 import type { MonthRow } from "@/components/pesa/types"
 
-const SAVED_KINDS = new Set(["future", "emergency"])
-const GAVE_KINDS = new Set(["give", "people"])
-const LIVED_KINDS = new Set(["essential", "bills"])
-const PROJECTABLE_KINDS = ["future", "emergency"]
+// Paying down debt is economically equivalent to saving for this app's
+// simplified net-worth model, so "debt" counts alongside future/emergency.
+export const SAVED_KINDS = new Set(["future", "emergency", "debt"])
+export const GAVE_KINDS = new Set(["give", "people"])
+export const LIVED_KINDS = new Set(["essential", "bills"])
+const PROJECTABLE_KINDS = ["future", "emergency", "debt"]
 
 const MONTH_LABELS = [
   "Jan",
@@ -143,16 +145,19 @@ export type PotProjection = {
 }
 
 /**
- * For every savings-style pot (future / emergency) return a forward-looking
- * projection based on the user's actual cadence. Pure read-side — no schema
- * touched. Returned as Record<bucketId, PotProjection>.
+ * Forward-looking projection for every active pot, based on the user's
+ * actual 3-month cadence. `avgPerMonth`/`lifetimeBalance` are computed for
+ * every kind (used by target-suggestion nudges on any pot); `monthsToGoal`/
+ * `etaIso`/`goalReached` only make sense for pots that accumulate toward a
+ * fixed target (future/emergency/debt) and stay null/false otherwise. Pure
+ * read-side — no schema touched. Returned as Record<bucketId, PotProjection>.
  */
 export async function loadPotProjections(
   userId: string,
 ): Promise<Record<string, PotProjection>> {
   const buckets = await prisma.bucket.findMany({
-    where: { userId, archivedAt: null, kind: { in: PROJECTABLE_KINDS } },
-    select: { id: true, target: true },
+    where: { userId, archivedAt: null },
+    select: { id: true, target: true, kind: true },
   })
   if (buckets.length === 0) return {}
 
@@ -184,10 +189,11 @@ export async function loadPotProjections(
   for (const b of buckets) {
     const lifetimeBalance = lifetimeMap.get(b.id) ?? 0
     const avgPerMonth = Math.max(0, Math.round((recentMap.get(b.id) ?? 0) / 3))
-    const goalReached = b.target > 0 && lifetimeBalance >= b.target
+    const projectable = PROJECTABLE_KINDS.includes(b.kind)
+    const goalReached = projectable && b.target > 0 && lifetimeBalance >= b.target
     let monthsToGoal: number | null = null
     let etaIso: string | null = null
-    if (!goalReached && b.target > 0 && avgPerMonth > 0) {
+    if (projectable && !goalReached && b.target > 0 && avgPerMonth > 0) {
       const remaining = b.target - lifetimeBalance
       monthsToGoal = Math.max(1, Math.ceil(remaining / avgPerMonth))
       const eta = new Date(now.getFullYear(), now.getMonth() + monthsToGoal, 1)

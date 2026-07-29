@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type {
   Action,
   AppState,
+  BankAccount,
   BankTransaction,
   IncomeSource,
   MonthRow,
@@ -87,6 +88,7 @@ function appReducer(state: AppState, action: Action): AppState {
             priority,
             kind: action.kind,
             dueDayOfMonth: action.dueDayOfMonth ?? null,
+            carryOver: action.kind === "debt",
           },
         ],
       }
@@ -191,6 +193,7 @@ export function PesaApp({
   annualMonths,
   filledStreak,
   incomeSources,
+  bankAccounts,
   bankLedger,
   monthlyBankSpend,
 }: {
@@ -203,6 +206,7 @@ export function PesaApp({
   annualMonths: MonthRow[]
   filledStreak: number
   incomeSources: IncomeSource[]
+  bankAccounts: BankAccount[]
   bankLedger: BankTransaction[]
   monthlyBankSpend: number
 }) {
@@ -368,6 +372,7 @@ export function PesaApp({
     content = (
       <BankScreen
         state={state}
+        bankAccounts={bankAccounts}
         bankLedger={bankLedger}
         currency={profile.currency}
         monthlyBankSpend={monthlyBankSpend}
@@ -380,6 +385,7 @@ export function PesaApp({
         currency={profile.currency}
         months={months}
         netWorth={netWorth}
+        avgEssentialsPerMonth={avgEssentialsPerMonth}
       />
     )
   } else if (tab === "wrap") {

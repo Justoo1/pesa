@@ -84,7 +84,7 @@ export function WrapScreen({
 
   const totalAllocated = state.buckets.reduce((s, b) => s + b.allocated, 0)
   const saved = state.buckets
-    .filter((b) => b.kind === "future")
+    .filter((b) => b.kind === "future" || b.kind === "emergency" || b.kind === "debt")
     .reduce((s, b) => s + b.allocated, 0)
   const given = state.buckets
     .filter((b) => b.kind === "give" || b.kind === "people")

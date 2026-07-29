@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
 import { BucketCard, Counter, MiniStat, type TabId } from "../ui"
+import { PaceAlertBanner } from "../pace-alert-banner"
 import type { AppState } from "../types"
 import { signOutAction } from "@/app/actions/auth"
 
@@ -91,6 +92,8 @@ export function HomeScreen({
           </button>
         </form>
       </div>
+
+      <PaceAlertBanner buckets={buckets} currency={currency} />
 
       <div style={{ padding: "16px 20px 4px" }}>
         <div

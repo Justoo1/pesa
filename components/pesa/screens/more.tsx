@@ -244,9 +244,13 @@ function SetupPanel({
               >
                 ⋮⋮
               </span>
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setEditingBucket(b)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setEditingBucket(b)
+                }}
                 style={{
                   appearance: "none",
                   border: 0,
@@ -270,8 +274,41 @@ function SetupPanel({
                   <div className="tiny">
                     Priority {b.priority} · {b.kind}
                   </div>
+                  {(() => {
+                    const avg = b.projection?.avgPerMonth ?? 0
+                    if (b.target <= 0 || avg <= 0) return null
+                    if (Math.abs(avg - b.target) / b.target <= 0.2) return null
+                    const suggested = Math.max(50, Math.round(avg / 50) * 50)
+                    const raise = suggested > b.target
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          dispatch({
+                            type: "adjustTarget",
+                            bucketId: b.id,
+                            delta: suggested - b.target,
+                          })
+                        }}
+                        className="tiny"
+                        style={{
+                          marginTop: 3,
+                          border: 0,
+                          background: "transparent",
+                          padding: 0,
+                          color: "var(--green-deep)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        Avg {fmtMoney(avg, currency)}/mo · {raise ? "raise" : "lower"} to ~
+                        {fmtMoney(suggested, currency)}?
+                      </button>
+                    )
+                  })()}
                 </div>
-              </button>
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button
                   className="btn btn-ghost btn-icon"

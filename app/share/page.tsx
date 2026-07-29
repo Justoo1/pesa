@@ -57,6 +57,7 @@ export default async function SharePage({
     priority: b.priority,
     kind: b.kind as BucketKind,
     dueDayOfMonth: b.dueDayOfMonth,
+    carryOver: b.carryOver,
   }))
 
   const sharedText = [pick(sp.title), pick(sp.text), pick(sp.url)]

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { getPrimaryAccountId } from "@/lib/bank"
 
 function ymOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -87,23 +88,43 @@ export async function ensureCurrentMonth(userId: string): Promise<void> {
   })
   const income = activeIncome.reduce((s, a) => s + a.amount, 0)
 
+  // Carry-over pots keep their unspent leftover as next month's starting
+  // balance instead of resetting to zero — everything else gets a hard reset.
+  const carryOverBuckets = await prisma.bucket.findMany({
+    where: { userId, carryOver: true },
+    select: { id: true, allocated: true, spent: true },
+  })
+  const primaryAccountId = income > 0 ? await getPrimaryAccountId(userId) : null
+
   await prisma.$transaction([
     prisma.bucket.updateMany({
-      where: { userId },
+      where: { userId, carryOver: false },
       data: { allocated: 0, spent: 0 },
     }),
+    ...carryOverBuckets.map((b) =>
+      prisma.bucket.update({
+        where: { id: b.id },
+        data: { allocated: Math.max(0, b.allocated - b.spent), spent: 0 },
+      }),
+    ),
     prisma.user.update({
       where: { id: userId },
-      data: {
-        activeMonth: currentYm,
-        monthLabel: longLabel(now),
-        ...(income > 0 ? { bankBalance: { increment: income } } : {}),
-      },
+      data: { activeMonth: currentYm, monthLabel: longLabel(now) },
     }),
-    ...(income > 0
+    ...(income > 0 && primaryAccountId
       ? [
+          prisma.bankAccount.update({
+            where: { id: primaryAccountId },
+            data: { balance: { increment: income } },
+          }),
           prisma.bankTransaction.create({
-            data: { userId, amount: income, kind: "income", note: "Payday credit" },
+            data: {
+              userId,
+              accountId: primaryAccountId,
+              amount: income,
+              kind: "income",
+              note: "Payday credit",
+            },
           }),
         ]
       : []),

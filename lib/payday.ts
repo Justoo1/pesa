@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { getPrimaryAccountId } from "@/lib/bank"
 
 export type PaydayDraft = {
   bucketId: string
@@ -44,6 +45,7 @@ export async function applyPaydayTemplateForUser(
   if (valid.length === 0) return { applied: 0 }
 
   const total = valid.reduce((s, d) => s + d.amount, 0)
+  const primaryAccountId = await getPrimaryAccountId(userId)
   await prisma.$transaction([
     ...valid.flatMap((d) => [
       prisma.transaction.create({
@@ -60,12 +62,12 @@ export async function applyPaydayTemplateForUser(
         data: { allocated: { increment: d.amount } },
       }),
     ]),
-    prisma.user.update({
-      where: { id: userId },
-      data: { bankBalance: { decrement: total } },
+    prisma.bankAccount.update({
+      where: { id: primaryAccountId },
+      data: { balance: { decrement: total } },
     }),
     prisma.bankTransaction.create({
-      data: { userId, amount: -total, kind: "disburse", note: "Payday replay" },
+      data: { userId, accountId: primaryAccountId, amount: -total, kind: "disburse", note: "Payday replay" },
     }),
   ])
   return { applied: valid.length }

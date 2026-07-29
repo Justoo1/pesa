@@ -17,6 +17,7 @@ import { LockButton } from "@/components/pesa/lock-button"
 import { OnboardingShell } from "@/components/pesa/onboarding/walkthrough"
 import type {
   AppState,
+  BankAccount,
   BankTransaction,
   BankTransactionKind,
   Bucket,
@@ -54,6 +55,7 @@ export default async function Page() {
     annualMonths,
     filledStreak,
     incomeSources,
+    bankAccounts,
     bankLedger,
     monthlyBankSpend,
   ] = await Promise.all([
@@ -78,7 +80,6 @@ export default async function Page() {
         pushBillsDueOn: true,
         autoPaydayOn: true,
         onboardedAt: true,
-        bankBalance: true,
       },
     }),
     prisma.bucket.findMany({
@@ -102,6 +103,10 @@ export default async function Page() {
     loadFilledStreak(userId),
     prisma.incomeSource.findMany({
       where: { userId },
+      orderBy: { order: "asc" },
+    }),
+    prisma.bankAccount.findMany({
+      where: { userId, archivedAt: null },
       orderBy: { order: "asc" },
     }),
     prisma.bankTransaction.findMany({
@@ -144,6 +149,7 @@ export default async function Page() {
     priority: b.priority,
     kind: b.kind as BucketKind,
     dueDayOfMonth: b.dueDayOfMonth,
+    carryOver: b.carryOver,
     projection: projections[b.id] ?? null,
   }))
 
@@ -164,8 +170,17 @@ export default async function Page() {
     active: s.active,
   }))
 
+  const bankAccountsClient: BankAccount[] = bankAccounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    icon: a.icon as IconName,
+    isPrimary: a.isPrimary,
+    balance: a.balance,
+  }))
+
   const bankLedgerClient: BankTransaction[] = bankLedger.map((t) => ({
     id: t.id,
+    accountId: t.accountId,
     amount: t.amount,
     kind: t.kind as BankTransactionKind,
     note: t.note,
@@ -174,7 +189,6 @@ export default async function Page() {
 
   const initialState: AppState = {
     salary: profile.salary,
-    bankBalance: user.bankBalance,
     buckets: bucketsClient,
     ledger: ledgerClient,
   }
@@ -224,6 +238,7 @@ export default async function Page() {
                 annualMonths={annualMonths}
                 filledStreak={filledStreak}
                 incomeSources={incomeSourcesClient}
+                bankAccounts={bankAccountsClient}
                 bankLedger={bankLedgerClient}
                 monthlyBankSpend={monthlyBankSpend}
               />

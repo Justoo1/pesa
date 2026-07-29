@@ -36,7 +36,7 @@ export function NetWorthDetailSheet({
   if (!open) return null
 
   const contributors = state.buckets
-    .filter((b) => b.kind === "future" || b.kind === "emergency")
+    .filter((b) => b.kind === "future" || b.kind === "emergency" || b.kind === "debt")
     .map((b) => ({
       ...b,
       lifetimeBalance: b.projection?.lifetimeBalance ?? 0,

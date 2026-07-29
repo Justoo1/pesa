@@ -28,11 +28,6 @@ model User {
   // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
   // belongs to. When the calendar advances past it we roll the month over.
   activeMonth String?
-  // Persistent running balance simulating a real bank account. Credited by
-  // income sources (on month rollover) and manual top-ups; debited whenever
-  // money is sent to a pot or logged as a personal spend. Never reset by the
-  // monthly bucket-tally rollover.
-  bankBalance Int      @default(0)
 
   // pesa settings flags
   roundUpsEnabled   Boolean @default(false)
@@ -59,6 +54,7 @@ model User {
   pushSubscriptions PushSubscription[]
   incomeSources     IncomeSource[]
   bankTxns          BankTransaction[]
+  bankAccounts      BankAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,6 +109,9 @@ model Bucket {
   priority       Int
   kind           String
   dueDayOfMonth  Int?
+  // If true, unspent balance (allocated - spent) rolls into next month's
+  // starting allocated instead of resetting to zero at rollover.
+  carryOver      Boolean   @default(false)
   archivedAt     DateTime?
   createdAt      DateTime  @default(now())
 
@@ -155,19 +154,44 @@ model IncomeSource {
   @@index([userId])
 }
 
-model BankTransaction {
-  id         String   @id @default(cuid())
+model BankAccount {
+  id         String    @id @default(cuid())
   userId     String
+  name       String
+  icon       String    @default("wallet")
+  // Disbursements and the monthly income credit always target the primary
+  // account (see lib/bank.ts `getPrimaryAccountId`). Exactly one per user.
+  isPrimary  Boolean   @default(false)
+  balance    Int       @default(0)
+  order      Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  txns BankTransaction[]
+
+  @@index([userId])
+}
+
+model BankTransaction {
+  id        String @id @default(cuid())
+  userId    String
+  accountId String
   // positive = credit (income/manual add), negative = debit (pot disburse/spend)
   amount     Int
   kind       String
   note       String
   occurredAt DateTime @default(now())
   createdAt  DateTime @default(now())
+  // Links the two legs of an account-to-account transfer.
+  transferId String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([userId, occurredAt])
+  @@index([accountId, occurredAt])
+  @@index([transferId])
 }
 
 model PushSubscription {

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
 import { fmtMoney } from "../format"
-import { Sheet } from "../ui"
+import { Sheet, Toggle } from "../ui"
 import type { IncomeSource } from "../types"
 import {
   createIncomeSource,
@@ -12,40 +12,6 @@ import {
   toggleIncomeSource,
   updateIncomeSource,
 } from "@/app/actions/income-sources"
-
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={on ? "Deactivate" : "Activate"}
-      style={{
-        width: 38,
-        height: 22,
-        borderRadius: 999,
-        background: on ? "var(--green)" : "var(--line)",
-        position: "relative",
-        border: 0,
-        cursor: "pointer",
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: 2,
-          left: on ? 18 : 2,
-          width: 18,
-          height: 18,
-          borderRadius: 999,
-          background: "var(--bg-app)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-          transition: "left 200ms ease",
-        }}
-      ></div>
-    </button>
-  )
-}
 
 function IncomeSourceRow({
   source,

@@ -13,6 +13,7 @@ const kindEnum = z.enum([
   "give",
   "bills",
   "emergency",
+  "debt",
 ])
 
 const createSchema = z.object({
@@ -22,6 +23,7 @@ const createSchema = z.object({
   icon: z.string().min(1).max(20),
   kind: kindEnum,
   dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+  carryOver: z.boolean().optional(),
 })
 
 export async function createBucket(input: z.infer<typeof createSchema>) {
@@ -36,6 +38,9 @@ export async function createBucket(input: z.infer<typeof createSchema>) {
       // Only "bills" pots get a due day; if another kind is set with a value
       // we ignore it to keep the model consistent.
       dueDayOfMonth: data.kind === "bills" ? (data.dueDayOfMonth ?? null) : null,
+      // Debt payoff is inherently a multi-month goal, same as future/emergency
+      // — default it to carry over unless the caller says otherwise.
+      carryOver: data.carryOver ?? data.kind === "debt",
       allocated: 0,
       priority: count + 1,
       userId,
@@ -138,6 +143,7 @@ const updateSchema = z.object({
   icon: z.string().min(1).max(20),
   kind: kindEnum,
   dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+  carryOver: z.boolean(),
 })
 
 export async function updateBucket(input: z.infer<typeof updateSchema>) {

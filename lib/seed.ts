@@ -28,6 +28,19 @@ export async function seedNewUser(userId: string) {
     },
   })
 
+  // Salary is derived from active income sources (see app/actions/income-sources.ts
+  // `syncSalary`) — seed one so it doesn't get zeroed out the first time the
+  // user edits their income sources.
+  await prisma.incomeSource.create({
+    data: { userId, name: "Salary", amount: 14000, active: true, order: 0 },
+  })
+
+  // Every user needs a primary bank account — disbursements and the monthly
+  // income credit always target it (see lib/bank.ts `getPrimaryAccountId`).
+  await prisma.bankAccount.create({
+    data: { userId, name: "Bank", icon: "wallet", isPrimary: true, balance: 0, order: 0 },
+  })
+
   // Seed a starter set of pots — empty, so the user starts fresh.
   await prisma.bucket.createMany({
     data: initialBuckets.map((b) => ({
@@ -39,6 +52,7 @@ export async function seedNewUser(userId: string) {
       icon: b.icon,
       priority: b.priority,
       kind: b.kind,
+      carryOver: b.carryOver,
     })),
   })
 }

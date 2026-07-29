@@ -6,6 +6,7 @@ import { Icon } from "../icons"
 import { Ring } from "../ui"
 import { MilestoneBanner } from "../milestone-banner"
 import { NetWorthDetailSheet } from "./net-worth-detail"
+import { FinancialHealthCard } from "../financial-health"
 import type { AppState, BucketColor, MonthRow } from "../types"
 
 export function InsightsScreen({
@@ -13,11 +14,13 @@ export function InsightsScreen({
   currency,
   months,
   netWorth,
+  avgEssentialsPerMonth,
 }: {
   state: AppState
   currency: string
   months: MonthRow[]
   netWorth: number
+  avgEssentialsPerMonth: number
 }) {
   const [view, setView] = useState<"saved" | "all">("all")
   const [netWorthOpen, setNetWorthOpen] = useState(false)
@@ -39,6 +42,28 @@ export function InsightsScreen({
     currMonth.total > 0 ? Math.round((currMonth.saved / currMonth.total) * 100) : 0
   const prevMonth = months[months.length - 2] ?? { saved: 0, gave: 0, lived: 0, total: 0 }
   const trendDelta = currMonth.saved - prevMonth.saved
+
+  // Financial health score: equally-weighted composite of this month's
+  // savings rate, emergency-cushion runway (6 months = full marks), and debt
+  // load relative to one month's salary (no debt pots = full marks).
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
+  const savingsScore = clamp(savingsRate)
+  const emergencyBalance = state.buckets
+    .filter((b) => b.kind === "emergency")
+    .reduce((s, b) => s + (b.projection?.lifetimeBalance ?? 0), 0)
+  const cushionScore = clamp(
+    avgEssentialsPerMonth > 0 ? (emergencyBalance / avgEssentialsPerMonth / 6) * 100 : 0,
+  )
+  const debtBuckets = state.buckets.filter((b) => b.kind === "debt")
+  const totalRemainingDebt = debtBuckets.reduce(
+    (s, b) => s + Math.max(0, b.target - (b.projection?.lifetimeBalance ?? 0)),
+    0,
+  )
+  const debtScore =
+    debtBuckets.length === 0
+      ? 100
+      : clamp(100 - (totalRemainingDebt / Math.max(1, state.salary)) * 100)
+  const healthScore = clamp((savingsScore + cushionScore + debtScore) / 3)
 
   // Only show pots that have actually received money this month, sorted by
   // how much landed in them (largest first).
@@ -146,6 +171,15 @@ export function InsightsScreen({
             </div>
           </div>
         </div>
+      </div>
+
+      <div style={{ padding: "16px 20px 0" }}>
+        <FinancialHealthCard
+          score={healthScore}
+          savingsScore={savingsScore}
+          cushionScore={cushionScore}
+          debtScore={debtScore}
+        />
       </div>
 
       <div style={{ padding: "20px 20px 0" }}>

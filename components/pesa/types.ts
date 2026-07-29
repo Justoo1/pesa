@@ -6,6 +6,7 @@ export type BucketKind =
   | "give"
   | "bills"
   | "emergency"
+  | "debt"
 
 export type PotProjection = {
   avgPerMonth: number
@@ -58,6 +59,7 @@ export type Bucket = {
   priority: number
   kind: BucketKind
   dueDayOfMonth: number | null
+  carryOver: boolean
   projection?: PotProjection | null
 }
 
@@ -79,10 +81,19 @@ export type IncomeSource = {
   active: boolean
 }
 
+export type BankAccount = {
+  id: string
+  name: string
+  icon: IconName
+  isPrimary: boolean
+  balance: number
+}
+
 export type BankTransactionKind = "income" | "manual" | "disburse" | "spend"
 
 export type BankTransaction = {
   id: string
+  accountId: string
   amount: number
   kind: BankTransactionKind
   note: string
@@ -128,7 +139,6 @@ export type MonthRow = {
 
 export type AppState = {
   salary: number
-  bankBalance: number
   buckets: Bucket[]
   ledger: Transaction[]
 }

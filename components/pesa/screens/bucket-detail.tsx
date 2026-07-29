@@ -57,18 +57,20 @@ export function BucketDetailScreen({
     return { text: `Due day ${bucket.dueDayOfMonth}`, tone: "muted" as const }
   })()
 
+  const isDebt = bucket.kind === "debt"
+
   const projectionBadge = (() => {
-    if (bucket.kind !== "future" && bucket.kind !== "emergency") return null
+    if (bucket.kind !== "future" && bucket.kind !== "emergency" && !isDebt) return null
     const p = bucket.projection
     if (!p) return null
     if (p.goalReached) {
-      return { text: "Goal reached", tone: "ok" as const }
+      return { text: isDebt ? "Paid off" : "Goal reached", tone: "ok" as const }
     }
     if (p.etaIso && p.monthsToGoal != null) {
       const eta = new Date(p.etaIso)
       const month = eta.toLocaleString("en-US", { month: "short", year: "numeric" })
       return {
-        text: `${fmtMoney(p.avgPerMonth, currency)}/mo · hit by ${month}`,
+        text: `${fmtMoney(p.avgPerMonth, currency)}/mo · ${isDebt ? "payoff by" : "hit by"} ${month}`,
         tone: "muted" as const,
       }
     }
@@ -78,7 +80,7 @@ export function BucketDetailScreen({
         tone: "muted" as const,
       }
     }
-    return { text: "No deposits in 3 mo", tone: "warn" as const }
+    return { text: isDebt ? "No payments in 3 mo" : "No deposits in 3 mo", tone: "warn" as const }
   })()
 
   const cushion = (() => {
@@ -201,6 +203,41 @@ export function BucketDetailScreen({
             </div>
           )}
 
+        {isDebt && bucket.projection && (
+          <div
+            className="card"
+            style={{
+              marginTop: 14,
+              padding: 12,
+              width: "100%",
+              background: "var(--green-tint)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Icon name="wallet" size={18} />
+            <div className="body" style={{ color: "var(--green-deep)", flex: 1 }}>
+              <strong style={{ color: "var(--green-deep)" }}>
+                {fmtMoney(bucket.projection.lifetimeBalance, currency)}
+              </strong>{" "}
+              paid of {fmtMoney(bucket.target, currency)}
+              {!bucket.projection.goalReached && (
+                <>
+                  {" "}
+                  ·{" "}
+                  {fmtMoney(
+                    Math.max(0, bucket.target - bucket.projection.lifetimeBalance),
+                    currency,
+                  )}{" "}
+                  still owed
+                </>
+              )}
+              .
+            </div>
+          </div>
+        )}
+
         {cushion && (
           <div
             className="card"
@@ -262,7 +299,7 @@ export function BucketDetailScreen({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
+            gridTemplateColumns: isDebt ? "1fr" : "1fr 1fr 1fr",
             gap: 8,
             marginTop: 18,
             width: "100%",
@@ -273,24 +310,28 @@ export function BucketDetailScreen({
             onClick={() => onOpenDisburse(bucket.id)}
             style={{ padding: "10px 8px", fontSize: 13 }}
           >
-            <Icon name="send" size={14} /> Top up
+            <Icon name="send" size={14} /> {isDebt ? "Make a payment" : "Top up"}
           </button>
-          <button
-            className="btn btn-clay"
-            onClick={() => setSpendOpen(true)}
-            disabled={bucket.allocated - bucket.spent <= 0}
-            style={{ padding: "10px 8px", fontSize: 13 }}
-          >
-            <Icon name="minus" size={14} /> Spend
-          </button>
-          <button
-            className="btn btn-soft"
-            onClick={() => setTransferOpen(true)}
-            disabled={bucket.allocated - bucket.spent <= 0 || state.buckets.length < 2}
-            style={{ padding: "10px 8px", fontSize: 13 }}
-          >
-            <Icon name="share" size={14} /> Move
-          </button>
+          {!isDebt && (
+            <>
+              <button
+                className="btn btn-clay"
+                onClick={() => setSpendOpen(true)}
+                disabled={bucket.allocated - bucket.spent <= 0}
+                style={{ padding: "10px 8px", fontSize: 13 }}
+              >
+                <Icon name="minus" size={14} /> Spend
+              </button>
+              <button
+                className="btn btn-soft"
+                onClick={() => setTransferOpen(true)}
+                disabled={bucket.allocated - bucket.spent <= 0 || state.buckets.length < 2}
+                style={{ padding: "10px 8px", fontSize: 13 }}
+              >
+                <Icon name="share" size={14} /> Move
+              </button>
+            </>
+          )}
         </div>
         <div style={{ width: "100%", marginTop: 8 }}>
           <button

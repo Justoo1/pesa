@@ -15,6 +15,7 @@ type Milestone = {
   bucketName: string
   threshold: number
   key: string
+  isDebt: boolean
 }
 
 function pickActive(buckets: Bucket[]): Milestone | null {
@@ -22,7 +23,7 @@ function pickActive(buckets: Bucket[]): Milestone | null {
   // bucket+threshold so each milestone runs on its own 7-day window.
   let best: Milestone | null = null
   for (const b of buckets) {
-    if (b.kind !== "future" && b.kind !== "emergency") continue
+    if (b.kind !== "future" && b.kind !== "emergency" && b.kind !== "debt") continue
     const balance = b.projection?.lifetimeBalance ?? 0
     if (balance <= 0) continue
     let crossed = 0
@@ -37,6 +38,7 @@ function pickActive(buckets: Bucket[]): Milestone | null {
         bucketName: b.name,
         threshold: crossed,
         key: `pesa.milestone.${b.id}.${crossed}`,
+        isDebt: b.kind === "debt",
       }
     }
   }
@@ -116,7 +118,8 @@ export function MilestoneBanner({
             className="serif"
             style={{ fontSize: 18, lineHeight: 1.1 }}
           >
-            {fmtMoney(candidate.threshold, currency)} sent to {candidate.bucketName}
+            {fmtMoney(candidate.threshold, currency)}{" "}
+            {candidate.isDebt ? "paid toward" : "sent to"} {candidate.bucketName}
           </div>
           <div className="tiny" style={{ opacity: 0.85, marginTop: 2 }}>
             Since you started. That&apos;s real.

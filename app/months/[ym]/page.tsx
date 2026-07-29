@@ -6,13 +6,10 @@ import { fmtMoney, fmtTxnDate } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
 import type { BucketColor, IconName } from "@/components/pesa/types"
 import { loadFilledByMonth } from "@/lib/month"
+import { SAVED_KINDS, GAVE_KINDS, LIVED_KINDS } from "@/lib/insights"
 import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
 
 export const dynamic = "force-dynamic"
-
-const SAVED_KINDS = new Set(["future"])
-const GAVE_KINDS = new Set(["give", "people"])
-const LIVED_KINDS = new Set(["essential", "bills"])
 
 export default async function MonthDetailPage({
   params,

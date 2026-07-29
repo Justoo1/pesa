@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
-import { Sheet } from "../ui"
+import { Sheet, Toggle } from "../ui"
 import { ColorPicker, IconPicker, KindPicker } from "./bucket-form"
 import { archiveBucket, updateBucket } from "@/app/actions/buckets"
 import type { Bucket, BucketColor, BucketKind, IconName } from "../types"
@@ -47,6 +47,7 @@ function EditPotContent({
   const [dueDay, setDueDay] = useState<string>(
     bucket.dueDayOfMonth ? String(bucket.dueDayOfMonth) : "",
   )
+  const [carryOver, setCarryOver] = useState(bucket.carryOver)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -72,6 +73,7 @@ function EditPotContent({
           kind,
           dueDayOfMonth:
             kind === "bills" && Number.isFinite(dueDayNum) ? dueDayNum : null,
+          carryOver,
         })
         router.refresh()
         onClose()
@@ -173,6 +175,19 @@ function EditPotContent({
             </div>
           </div>
         )}
+
+        <div
+          className="row"
+          style={{ padding: "10px 0" }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Carry over leftover</div>
+            <div className="tiny" style={{ marginTop: 2 }}>
+              Unspent balance rolls into next month instead of resetting.
+            </div>
+          </div>
+          <Toggle on={carryOver} onClick={() => setCarryOver((v) => !v)} />
+        </div>
 
         {error && (
           <div

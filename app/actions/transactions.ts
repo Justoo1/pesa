@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
 import { applyPaydayTemplateForUser } from "@/lib/payday"
+import { getPrimaryAccountId } from "@/lib/bank"
 
 const disburseSchema = z.object({
   bucketId: z.string().min(1),
@@ -33,7 +34,7 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   const inCurrentMonth = !occurredAt || isInCurrentCalendarMonth(occurredAt)
   const allowRoundUp = inCurrentMonth
 
-  const [bucket, user, savingsBucket] = await Promise.all([
+  const [bucket, user, savingsBucket, primaryAccountId] = await Promise.all([
     prisma.bucket.findFirst({
       where: { id: bucketId, userId },
       select: { id: true, name: true, target: true, allocated: true },
@@ -51,6 +52,7 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
       orderBy: { priority: "asc" },
       select: { id: true },
     }),
+    getPrimaryAccountId(userId),
   ])
   if (!bucket) throw new Error("Bucket not found")
 
@@ -72,13 +74,14 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
         where: { id: bucketId },
         data: { allocated: { increment: amount } },
       }),
-      prisma.user.update({
-        where: { id: userId },
-        data: { bankBalance: { decrement: amount } },
+      prisma.bankAccount.update({
+        where: { id: primaryAccountId },
+        data: { balance: { decrement: amount } },
       }),
       prisma.bankTransaction.create({
         data: {
           userId,
+          accountId: primaryAccountId,
           amount: -amount,
           kind: "disburse",
           note: `Sent to ${bucket.name}`,
@@ -116,12 +119,18 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
           where: { id: savingsBucket.id },
           data: { allocated: { increment: roundUp } },
         }),
-        prisma.user.update({
-          where: { id: userId },
-          data: { bankBalance: { decrement: roundUp } },
+        prisma.bankAccount.update({
+          where: { id: primaryAccountId },
+          data: { balance: { decrement: roundUp } },
         }),
         prisma.bankTransaction.create({
-          data: { userId, amount: -roundUp, kind: "disburse", note: "Round-up" },
+          data: {
+            userId,
+            accountId: primaryAccountId,
+            amount: -roundUp,
+            kind: "disburse",
+            note: "Round-up",
+          },
         }),
       )
     }
@@ -220,13 +229,14 @@ export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
   }
   if (inCurrentMonth) {
     const total = valid.reduce((s, e) => s + e.amount, 0)
+    const primaryAccountId = await getPrimaryAccountId(userId)
     ops.push(
-      prisma.user.update({
-        where: { id: userId },
-        data: { bankBalance: { decrement: total } },
+      prisma.bankAccount.update({
+        where: { id: primaryAccountId },
+        data: { balance: { decrement: total } },
       }),
       prisma.bankTransaction.create({
-        data: { userId, amount: -total, kind: "disburse", note: "Bulk top-up" },
+        data: { userId, accountId: primaryAccountId, amount: -total, kind: "disburse", note: "Bulk top-up" },
       }),
     )
   }
