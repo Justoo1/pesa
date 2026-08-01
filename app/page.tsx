@@ -80,6 +80,7 @@ export default async function Page() {
         pushBillsDueOn: true,
         autoPaydayOn: true,
         onboardedAt: true,
+        tourCompletedAt: true,
       },
     }),
     prisma.bucket.findMany({
@@ -136,6 +137,7 @@ export default async function Page() {
     autoPaydayOn: user.autoPaydayOn,
     hasPushSubscription: pushCount > 0,
     hasSavingsBucket: savingsCount > 0,
+    tourCompleted: !!user.tourCompletedAt,
   }
 
   const bucketsClient: Bucket[] = buckets.map((b) => ({

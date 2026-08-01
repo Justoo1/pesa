@@ -41,6 +41,7 @@ model User {
   appLockEnabled    Boolean @default(false)
   appLockPinHash    String?
   onboardedAt       DateTime?
+  tourCompletedAt   DateTime?
 
   // push notification prefs
   pushPaydayOn    Boolean @default(false)

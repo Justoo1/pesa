@@ -21,6 +21,7 @@ import { InsightsScreen } from "./screens/insights"
 import { WrapScreen } from "./screens/wrap"
 import { MoreScreen } from "./screens/more"
 import { LockGate } from "./lock-gate"
+import { AppTour } from "./tour/tour"
 import { PaydayReviewSheet, type PaydayDraft } from "./screens/payday-review"
 import {
   applyPaydayTemplate as applyPaydayTemplateAction,
@@ -224,6 +225,7 @@ export function PesaApp({
   const [disburseOpen, setDisburseOpen] = useState(false)
   const [paydayReviewOpen, setPaydayReviewOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [tourActive, setTourActive] = useState(!profile.tourCompleted)
 
   const prevLedgerLen = useRef(state.ledger.length)
   useEffect(() => {
@@ -409,6 +411,10 @@ export function PesaApp({
         salary={state.salary}
         profile={profile}
         incomeSources={incomeSources}
+        onReplayTour={() => {
+          setActiveBucket(null)
+          setTourActive(true)
+        }}
       />
     )
   }
@@ -449,6 +455,10 @@ export function PesaApp({
       />
 
       {toast && <Toast>{toast}</Toast>}
+
+      {tourActive && (
+        <AppTour tab={tab} setTab={setTab} onDone={() => setTourActive(false)} />
+      )}
     </LockGate>
   )
 }

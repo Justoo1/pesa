@@ -47,6 +47,7 @@ export type IconName =
   | "share"
   | "tag"
   | "logout"
+  | "help"
 
 export type Bucket = {
   id: string
@@ -120,6 +121,7 @@ export type UserProfile = {
   autoPaydayOn: boolean
   hasPushSubscription: boolean
   hasSavingsBucket: boolean
+  tourCompleted: boolean
 }
 
 export type WrapHighlight = {

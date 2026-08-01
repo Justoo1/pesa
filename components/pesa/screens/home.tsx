@@ -97,6 +97,7 @@ export function HomeScreen({
 
       <div style={{ padding: "16px 20px 4px" }}>
         <div
+          data-tour="home-hero"
           className="card"
           style={{
             background: "linear-gradient(160deg, #2A3A22 0%, #3D5234 70%, #4A6240 100%)",
@@ -257,6 +258,7 @@ export function HomeScreen({
       </div>
 
       <div
+        data-tour="home-pots"
         style={{
           padding: "20px 20px 8px",
           display: "flex",

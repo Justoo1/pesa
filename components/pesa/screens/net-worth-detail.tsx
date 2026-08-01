@@ -66,7 +66,7 @@ export function NetWorthDetailSheet({
         <div style={{ width: 44 }}></div>
       </div>
 
-      <div style={{ overflowY: "auto", flex: 1, padding: "0 4px 12px" }}>
+      <div style={{ overflowY: "auto", flex: 1, minHeight: 0, padding: "0 4px 12px" }}>
         <div
           className="card"
           style={{

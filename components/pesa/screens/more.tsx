@@ -20,6 +20,7 @@ import { PaydayPrefsSheet } from "./payday-prefs"
 import { RoundUpsSheet } from "./round-ups"
 import { AppLockSheet } from "./app-lock"
 import { AboutSheet } from "./about"
+import { HelpSheet } from "./help"
 import { ArchivedPotsSheet } from "./archived-pots"
 import { DeleteAccountSheet } from "./delete-account"
 import { signOutAction } from "@/app/actions/auth"
@@ -376,11 +377,13 @@ function SettingsPanel({
   salary,
   profile,
   incomeSources,
+  onReplayTour,
 }: {
   currency: string
   salary: number
   profile: UserProfile
   incomeSources: IncomeSourceType[]
+  onReplayTour: () => void
 }) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
@@ -388,6 +391,7 @@ function SettingsPanel({
   const [paydayOpen, setPaydayOpen] = useState(false)
   const [lockOpen, setLockOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [resetting, startResetting] = useTransition()
@@ -494,6 +498,11 @@ function SettingsPanel({
             onClick={() => setArchivedOpen(true)}
           />
           <SettingRow
+            icon="help"
+            label="Help & tutorials"
+            onClick={() => setHelpOpen(true)}
+          />
+          <SettingRow
             icon="info"
             label="About Pesa"
             value="v0.2"
@@ -564,6 +573,11 @@ function SettingsPanel({
         enabled={profile.appLockEnabled}
       />
       <AboutSheet open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <HelpSheet
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onReplayTour={onReplayTour}
+      />
       <ArchivedPotsSheet
         open={archivedOpen}
         onClose={() => setArchivedOpen(false)}
@@ -585,6 +599,7 @@ export function MoreScreen({
   salary,
   profile,
   incomeSources,
+  onReplayTour,
 }: {
   state: AppState
   dispatch: (a: Action) => void
@@ -592,6 +607,7 @@ export function MoreScreen({
   salary: number
   profile: UserProfile
   incomeSources: IncomeSourceType[]
+  onReplayTour: () => void
 }) {
   const [tab, setTab] = useState<"setup" | "settings">("setup")
 
@@ -639,6 +655,7 @@ export function MoreScreen({
           salary={salary}
           profile={profile}
           incomeSources={incomeSources}
+          onReplayTour={onReplayTour}
         />
       )}
     </>

@@ -206,6 +206,13 @@ export function Icon({ name, size = 20, stroke = 1.7 }: IconProps) {
           <path d="M12 11v5M12 8h.01" />
         </svg>
       )
+    case "help":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.29c-.7.31-1 .86-1 1.71v.3M12 17h.01" />
+        </svg>
+      )
     case "share":
       return (
         <svg {...common}>

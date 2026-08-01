@@ -156,6 +156,7 @@ export function TabBar({
             className="tab"
             aria-current={active ? "page" : undefined}
             onClick={() => onChange(t.id as TabId)}
+            data-tour={`tab-${t.id}`}
           >
             <Icon name={t.icon} size={22} />
             <span>{t.label}</span>
