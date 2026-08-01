@@ -28,6 +28,10 @@ model User {
   // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
   // belongs to. When the calendar advances past it we roll the month over.
   activeMonth String?
+  // Calendar month ("YYYY-MM") whose payday income was last credited to the
+  // bank. Decoupled from `activeMonth` — pots reset on the 1st, but the bank
+  // credit waits for `paydayDayOfMonth` (see lib/month.ts `ensurePaydayCredited`).
+  lastPayCreditYm String?
 
   // pesa settings flags
   roundUpsEnabled   Boolean @default(false)

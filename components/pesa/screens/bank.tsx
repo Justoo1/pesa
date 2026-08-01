@@ -246,7 +246,7 @@ function SpendFromBankSheet({
             autoFocus
           />
           <div className="tiny" style={{ marginTop: 6, color: "var(--ink-3)" }}>
-            {fmtMoney(Math.max(0, spendableRemaining), currency)} spendable left this month
+            {fmtMoney(Math.max(0, spendableRemaining), currency)} spendable left this cycle
           </div>
         </div>
         {overspends && (
@@ -831,11 +831,11 @@ export function BankScreen({
         }}
       >
         <MiniStat
-          label="Spendable this month"
+          label="Spendable this cycle"
           value={fmtMoney(Math.max(0, spendableRemaining), currency)}
           tint={spendableRemaining < 0 ? "clay" : "gold"}
         />
-        <MiniStat label="Spent this month" value={fmtMoney(monthlyBankSpend, currency)} tint="clay" />
+        <MiniStat label="Spent this cycle" value={fmtMoney(monthlyBankSpend, currency)} tint="clay" />
       </div>
 
       <div

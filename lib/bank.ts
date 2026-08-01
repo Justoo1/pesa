@@ -19,14 +19,25 @@ export async function getPrimaryAccountId(userId: string): Promise<string> {
 }
 
 /**
- * Sum of personal (not-tied-to-a-pot) spends logged this calendar month, used
- * to deduct from the "Spendable" allowance on the Bank page. Scoped to the
- * current month the same way pot `allocated`/`spent` tallies are, so it
- * resets naturally each payday rather than accumulating forever.
+ * Sum of personal (not-tied-to-a-pot) spends logged since the current pay
+ * cycle started, used to deduct from the "Spendable" allowance on the Bank
+ * page. Scoped to the pay cycle (payday-to-payday, same as
+ * `ensurePaydayCredited` in lib/month.ts) rather than the calendar month —
+ * pots reset on the 1st, but the bank's spendable allowance shouldn't reset
+ * until the *real* payday, so it stays anchored to last cycle's figure until
+ * `paydayDayOfMonth` arrives (falls back to the 1st if unset).
  */
 export async function loadMonthlyBankSpend(userId: string): Promise<number> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { paydayDayOfMonth: true },
+  })
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const payDay = user?.paydayDayOfMonth ?? 1
+  const start =
+    now.getDate() >= payDay
+      ? new Date(now.getFullYear(), now.getMonth(), payDay)
+      : new Date(now.getFullYear(), now.getMonth() - 1, payDay)
   const result = await prisma.bankTransaction.aggregate({
     where: { userId, kind: "spend", occurredAt: { gte: start } },
     _sum: { amount: true },
