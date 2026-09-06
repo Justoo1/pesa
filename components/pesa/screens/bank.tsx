@@ -22,6 +22,8 @@ function iconForKind(kind: BankTransactionKind) {
       return "plus" as const
     case "spend":
       return "minus" as const
+    case "milestone":
+      return "flag" as const
     case "disburse":
     default:
       return "send" as const

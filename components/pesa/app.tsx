@@ -8,7 +8,10 @@ import type {
   BankAccount,
   BankTransaction,
   IncomeSource,
+  Milestone,
+  MilestoneTransaction,
   MonthRow,
+  Project,
   UserProfile,
 } from "./types"
 import { fmtMoney } from "./format"
@@ -18,6 +21,7 @@ import { BankScreen } from "./screens/bank"
 import { DisburseFlow } from "./screens/disburse"
 import { BucketDetailScreen } from "./screens/bucket-detail"
 import { InsightsScreen } from "./screens/insights"
+import { ProjectsScreen } from "./screens/projects"
 import { WrapScreen } from "./screens/wrap"
 import { MoreScreen } from "./screens/more"
 import { LockGate } from "./lock-gate"
@@ -197,6 +201,9 @@ export function PesaApp({
   bankAccounts,
   bankLedger,
   monthlyBankSpend,
+  projects,
+  milestones,
+  milestoneLedger,
 }: {
   initialState: AppState
   profile: UserProfile
@@ -210,6 +217,9 @@ export function PesaApp({
   bankAccounts: BankAccount[]
   bankLedger: BankTransaction[]
   monthlyBankSpend: number
+  projects: Project[]
+  milestones: Milestone[]
+  milestoneLedger: MilestoneTransaction[]
 }) {
   const router = useRouter()
   const [state, dispatch] = useReducer(appReducer, initialState)
@@ -388,6 +398,16 @@ export function PesaApp({
         months={months}
         netWorth={netWorth}
         avgEssentialsPerMonth={avgEssentialsPerMonth}
+      />
+    )
+  } else if (tab === "projects") {
+    content = (
+      <ProjectsScreen
+        buckets={state.buckets}
+        projects={projects}
+        milestones={milestones}
+        milestoneLedger={milestoneLedger}
+        currency={profile.currency}
       />
     )
   } else if (tab === "wrap") {

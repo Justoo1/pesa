@@ -48,6 +48,8 @@ export type IconName =
   | "tag"
   | "logout"
   | "help"
+  | "flag"
+  | "lock"
 
 export type Bucket = {
   id: string
@@ -90,13 +92,50 @@ export type BankAccount = {
   balance: number
 }
 
-export type BankTransactionKind = "income" | "manual" | "disburse" | "spend"
+export type BankTransactionKind = "income" | "manual" | "disburse" | "spend" | "milestone"
 
 export type BankTransaction = {
   id: string
   accountId: string
   amount: number
   kind: BankTransactionKind
+  note: string
+  /** ISO string when serialised across the server/client boundary */
+  occurredAt: string
+}
+
+export type MilestoneStatus = "locked" | "in_progress" | "completed"
+
+export type Project = {
+  id: string
+  name: string
+  targetAmount: number
+  /** ISO string when serialised across the server/client boundary */
+  targetDate: string | null
+  icon: IconName
+}
+
+// Note: unrelated to the local, purely client-side `Milestone` type in
+// milestone-banner.tsx (a lifetime-balance celebration banner) — this is the
+// persisted roadmap milestone.
+export type Milestone = {
+  id: string
+  projectId: string
+  title: string
+  funDetail: string
+  targetAmount: number
+  currentSaved: number
+  /** ISO string when serialised across the server/client boundary */
+  targetDate: string | null
+  sequenceOrder: number
+  status: MilestoneStatus
+  bucketId: string | null
+}
+
+export type MilestoneTransaction = {
+  id: string
+  milestoneId: string
+  amount: number
   note: string
   /** ISO string when serialised across the server/client boundary */
   occurredAt: string

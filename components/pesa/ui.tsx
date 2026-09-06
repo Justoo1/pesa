@@ -112,7 +112,7 @@ export function BucketCard({
 }
 
 /* ---------- Bottom Tab Bar ---------- */
-export type TabId = "home" | "bank" | "insights" | "wrap" | "settings"
+export type TabId = "home" | "bank" | "insights" | "projects" | "wrap" | "settings"
 
 export function TabBar({
   current,
@@ -128,6 +128,7 @@ export function TabBar({
     { id: "bank", label: "Bank", icon: "wallet" },
     { id: "plus", label: "Disburse", icon: "send", isFab: true },
     { id: "insights", label: "Insights", icon: "trend" },
+    { id: "projects", label: "Projects", icon: "flag" },
     { id: "wrap", label: "Wrap", icon: "spark" },
     { id: "settings", label: "More", icon: "settings" },
   ]

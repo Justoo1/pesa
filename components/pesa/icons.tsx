@@ -235,6 +235,20 @@ export function Icon({ name, size = 20, stroke = 1.7 }: IconProps) {
           <path d="M21 12H9" />
         </svg>
       )
+    case "flag":
+      return (
+        <svg {...common}>
+          <path d="M5 21V4" />
+          <path d="M5 4h13l-3 4 3 4H5" />
+        </svg>
+      )
+    case "lock":
+      return (
+        <svg {...common}>
+          <rect x="4" y="11" width="16" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      )
     default:
       return (
         <svg {...common}>

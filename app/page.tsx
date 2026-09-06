@@ -25,6 +25,10 @@ import type {
   BucketKind,
   IconName,
   IncomeSource,
+  Milestone,
+  MilestoneStatus,
+  MilestoneTransaction,
+  Project,
   Transaction,
   UserProfile,
 } from "@/components/pesa/types"
@@ -58,6 +62,9 @@ export default async function Page() {
     bankAccounts,
     bankLedger,
     monthlyBankSpend,
+    projects,
+    milestones,
+    milestoneLedger,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -116,6 +123,19 @@ export default async function Page() {
       take: 100,
     }),
     loadMonthlyBankSpend(userId),
+    prisma.project.findMany({
+      where: { userId, archivedAt: null },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.milestone.findMany({
+      where: { userId, archivedAt: null },
+      orderBy: [{ projectId: "asc" }, { sequenceOrder: "asc" }],
+    }),
+    prisma.milestoneTransaction.findMany({
+      where: { userId },
+      orderBy: { occurredAt: "desc" },
+      take: 200,
+    }),
   ])
 
   const profile: UserProfile = {
@@ -189,6 +209,35 @@ export default async function Page() {
     occurredAt: t.occurredAt.toISOString(),
   }))
 
+  const projectsClient: Project[] = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    targetAmount: p.targetAmount,
+    targetDate: p.targetDate ? p.targetDate.toISOString() : null,
+    icon: p.icon as IconName,
+  }))
+
+  const milestonesClient: Milestone[] = milestones.map((m) => ({
+    id: m.id,
+    projectId: m.projectId,
+    title: m.title,
+    funDetail: m.funDetail,
+    targetAmount: m.targetAmount,
+    currentSaved: m.currentSaved,
+    targetDate: m.targetDate ? m.targetDate.toISOString() : null,
+    sequenceOrder: m.sequenceOrder,
+    status: m.status as MilestoneStatus,
+    bucketId: m.bucketId,
+  }))
+
+  const milestoneLedgerClient: MilestoneTransaction[] = milestoneLedger.map((t) => ({
+    id: t.id,
+    milestoneId: t.milestoneId,
+    amount: t.amount,
+    note: t.note,
+    occurredAt: t.occurredAt.toISOString(),
+  }))
+
   const initialState: AppState = {
     salary: profile.salary,
     buckets: bucketsClient,
@@ -243,6 +292,9 @@ export default async function Page() {
                 bankAccounts={bankAccountsClient}
                 bankLedger={bankLedgerClient}
                 monthlyBankSpend={monthlyBankSpend}
+                projects={projectsClient}
+                milestones={milestonesClient}
+                milestoneLedger={milestoneLedgerClient}
               />
             </div>
           </div>
