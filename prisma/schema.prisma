@@ -63,6 +63,7 @@ model User {
   projects          Project[]
   milestones        Milestone[]
   milestoneTxns     MilestoneTransaction[]
+  mobileSessions    MobileSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -101,6 +102,40 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// One-time email codes for mobile passwordless sign-in (the mobile
+// equivalent of the web's Resend magic-link provider — a code instead of a
+// tappable link, since a bare deep link can't easily reopen the app here).
+// Not tied to an existing User row: like the web magic link, verifying a
+// code for an email with no account creates one.
+model MobileLoginCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}
+
+// Bearer-token sessions for the mobile app, decoupled from the web's
+// Auth.js cookie/JWT session. One row per issued refresh token, so a
+// refresh can be rotated/revoked independently of other devices.
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ---------- Pesa domain ----------

@@ -5,6 +5,14 @@ import { randomUUID } from "crypto"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import {
+  addFundsSchema,
+  archiveBankAccountSchema,
+  bankTransferSchema,
+  createBankAccountSchema,
+  renameBankAccountSchema,
+  spendFromBankSchema,
+} from "@/lib/mobile/schemas"
 
 async function ownedAccount(userId: string, accountId: string) {
   const account = await prisma.bankAccount.findFirst({
@@ -15,14 +23,7 @@ async function ownedAccount(userId: string, accountId: string) {
   return account
 }
 
-const addFundsSchema = z.object({
-  accountId: z.string().min(1),
-  amount: z.number().int().positive(),
-  note: z.string().max(200).optional(),
-})
-
-export async function addFundsToBank(input: z.infer<typeof addFundsSchema>) {
-  const userId = await requireUserId()
+export async function addFundsToBankCore(userId: string, input: z.infer<typeof addFundsSchema>) {
   const { accountId, amount, note } = addFundsSchema.parse(input)
   await ownedAccount(userId, accountId)
   await prisma.$transaction([
@@ -37,14 +38,15 @@ export async function addFundsToBank(input: z.infer<typeof addFundsSchema>) {
   revalidatePath("/")
 }
 
-const spendFromBankSchema = z.object({
-  accountId: z.string().min(1),
-  amount: z.number().int().positive(),
-  note: z.string().max(200).optional(),
-})
-
-export async function spendFromBank(input: z.infer<typeof spendFromBankSchema>) {
+export async function addFundsToBank(input: z.infer<typeof addFundsSchema>) {
   const userId = await requireUserId()
+  return addFundsToBankCore(userId, input)
+}
+
+export async function spendFromBankCore(
+  userId: string,
+  input: z.infer<typeof spendFromBankSchema>,
+) {
   const { accountId, amount, note } = spendFromBankSchema.parse(input)
   await ownedAccount(userId, accountId)
   await prisma.$transaction([
@@ -65,14 +67,16 @@ export async function spendFromBank(input: z.infer<typeof spendFromBankSchema>) 
   revalidatePath("/")
 }
 
-const createAccountSchema = z.object({
-  name: z.string().min(1).max(40),
-  icon: z.string().min(1).max(20).optional(),
-})
-
-export async function createBankAccount(input: z.infer<typeof createAccountSchema>) {
+export async function spendFromBank(input: z.infer<typeof spendFromBankSchema>) {
   const userId = await requireUserId()
-  const { name, icon } = createAccountSchema.parse(input)
+  return spendFromBankCore(userId, input)
+}
+
+export async function createBankAccountCore(
+  userId: string,
+  input: z.infer<typeof createBankAccountSchema>,
+) {
+  const { name, icon } = createBankAccountSchema.parse(input)
   const count = await prisma.bankAccount.count({ where: { userId, archivedAt: null } })
   const account = await prisma.bankAccount.create({
     data: {
@@ -87,14 +91,16 @@ export async function createBankAccount(input: z.infer<typeof createAccountSchem
   return account
 }
 
-const renameAccountSchema = z.object({
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(40),
-})
-
-export async function renameBankAccount(input: z.infer<typeof renameAccountSchema>) {
+export async function createBankAccount(input: z.infer<typeof createBankAccountSchema>) {
   const userId = await requireUserId()
-  const { accountId, name } = renameAccountSchema.parse(input)
+  return createBankAccountCore(userId, input)
+}
+
+export async function renameBankAccountCore(
+  userId: string,
+  input: z.infer<typeof renameBankAccountSchema>,
+) {
+  const { accountId, name } = renameBankAccountSchema.parse(input)
   await prisma.bankAccount.updateMany({
     where: { id: accountId, userId },
     data: { name },
@@ -102,11 +108,16 @@ export async function renameBankAccount(input: z.infer<typeof renameAccountSchem
   revalidatePath("/")
 }
 
-const archiveAccountSchema = z.object({ accountId: z.string().min(1) })
-
-export async function archiveBankAccount(input: z.infer<typeof archiveAccountSchema>) {
+export async function renameBankAccount(input: z.infer<typeof renameBankAccountSchema>) {
   const userId = await requireUserId()
-  const { accountId } = archiveAccountSchema.parse(input)
+  return renameBankAccountCore(userId, input)
+}
+
+export async function archiveBankAccountCore(
+  userId: string,
+  input: z.infer<typeof archiveBankAccountSchema>,
+) {
+  const { accountId } = archiveBankAccountSchema.parse(input)
   const account = await ownedAccount(userId, accountId)
   if (account.isPrimary) throw new Error("Can't archive your primary account")
   if (account.balance !== 0) throw new Error("Move its balance out before archiving")
@@ -117,21 +128,16 @@ export async function archiveBankAccount(input: z.infer<typeof archiveAccountSch
   revalidatePath("/")
 }
 
-const transferSchema = z
-  .object({
-    fromAccountId: z.string().min(1),
-    toAccountId: z.string().min(1),
-    amount: z.number().int().positive(),
-    note: z.string().max(200).optional(),
-  })
-  .refine((d) => d.fromAccountId !== d.toAccountId, {
-    message: "Pick two different accounts",
-    path: ["toAccountId"],
-  })
-
-export async function transferBetweenAccounts(input: z.infer<typeof transferSchema>) {
+export async function archiveBankAccount(input: z.infer<typeof archiveBankAccountSchema>) {
   const userId = await requireUserId()
-  const { fromAccountId, toAccountId, amount, note } = transferSchema.parse(input)
+  return archiveBankAccountCore(userId, input)
+}
+
+export async function transferBetweenAccountsCore(
+  userId: string,
+  input: z.infer<typeof bankTransferSchema>,
+) {
+  const { fromAccountId, toAccountId, amount, note } = bankTransferSchema.parse(input)
   const [from, to] = await Promise.all([
     ownedAccount(userId, fromAccountId),
     ownedAccount(userId, toAccountId),
@@ -168,4 +174,9 @@ export async function transferBetweenAccounts(input: z.infer<typeof transferSche
     }),
   ])
   revalidatePath("/")
+}
+
+export async function transferBetweenAccounts(input: z.infer<typeof bankTransferSchema>) {
+  const userId = await requireUserId()
+  return transferBetweenAccountsCore(userId, input)
 }

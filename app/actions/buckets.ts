@@ -4,31 +4,16 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import {
+  adjustBucketTargetSchema,
+  archiveBucketSchema,
+  createBucketSchema,
+  reorderBucketsSchema,
+  updateBucketSchema,
+} from "@/lib/mobile/schemas"
 
-const colorEnum = z.enum(["clay", "green", "gold", "rose", "sage"])
-const kindEnum = z.enum([
-  "essential",
-  "future",
-  "people",
-  "give",
-  "bills",
-  "emergency",
-  "debt",
-])
-
-const createSchema = z.object({
-  name: z.string().min(1).max(40),
-  target: z.number().int().nonnegative(),
-  color: colorEnum,
-  icon: z.string().min(1).max(20),
-  kind: kindEnum,
-  dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
-  carryOver: z.boolean().optional(),
-})
-
-export async function createBucket(input: z.infer<typeof createSchema>) {
-  const userId = await requireUserId()
-  const data = createSchema.parse(input)
+export async function createBucketCore(userId: string, input: z.infer<typeof createBucketSchema>) {
+  const data = createBucketSchema.parse(input)
   const count = await prisma.bucket.count({
     where: { userId, archivedAt: null },
   })
@@ -50,14 +35,16 @@ export async function createBucket(input: z.infer<typeof createSchema>) {
   return bucket
 }
 
-const adjustSchema = z.object({
-  bucketId: z.string().min(1),
-  delta: z.number().int(),
-})
-
-export async function adjustTarget(input: z.infer<typeof adjustSchema>) {
+export async function createBucket(input: z.infer<typeof createBucketSchema>) {
   const userId = await requireUserId()
-  const { bucketId, delta } = adjustSchema.parse(input)
+  return createBucketCore(userId, input)
+}
+
+export async function adjustTargetCore(
+  userId: string,
+  input: z.infer<typeof adjustBucketTargetSchema>,
+) {
+  const { bucketId, delta } = adjustBucketTargetSchema.parse(input)
   const bucket = await prisma.bucket.findFirst({
     where: { id: bucketId, userId },
   })
@@ -70,11 +57,16 @@ export async function adjustTarget(input: z.infer<typeof adjustSchema>) {
   revalidatePath("/")
 }
 
-const archiveSchema = z.object({ bucketId: z.string().min(1) })
-
-export async function archiveBucket(input: z.infer<typeof archiveSchema>) {
+export async function adjustTarget(input: z.infer<typeof adjustBucketTargetSchema>) {
   const userId = await requireUserId()
-  const { bucketId } = archiveSchema.parse(input)
+  return adjustTargetCore(userId, input)
+}
+
+export async function archiveBucketCore(
+  userId: string,
+  input: z.infer<typeof archiveBucketSchema>,
+) {
+  const { bucketId } = archiveBucketSchema.parse(input)
   await prisma.bucket.updateMany({
     where: { id: bucketId, userId },
     data: { archivedAt: new Date() },
@@ -82,8 +74,12 @@ export async function archiveBucket(input: z.infer<typeof archiveSchema>) {
   revalidatePath("/")
 }
 
-export async function listArchivedBuckets() {
+export async function archiveBucket(input: z.infer<typeof archiveBucketSchema>) {
   const userId = await requireUserId()
+  return archiveBucketCore(userId, input)
+}
+
+export async function listArchivedBucketsCore(userId: string) {
   return prisma.bucket.findMany({
     where: { userId, archivedAt: { not: null } },
     orderBy: { archivedAt: "desc" },
@@ -101,9 +97,16 @@ export async function listArchivedBuckets() {
   })
 }
 
-export async function restoreBucket(input: z.infer<typeof archiveSchema>) {
+export async function listArchivedBuckets() {
   const userId = await requireUserId()
-  const { bucketId } = archiveSchema.parse(input)
+  return listArchivedBucketsCore(userId)
+}
+
+export async function restoreBucketCore(
+  userId: string,
+  input: z.infer<typeof archiveBucketSchema>,
+) {
+  const { bucketId } = archiveBucketSchema.parse(input)
   const owned = await prisma.bucket.findFirst({
     where: { id: bucketId, userId, archivedAt: { not: null } },
     select: { id: true },
@@ -121,9 +124,16 @@ export async function restoreBucket(input: z.infer<typeof archiveSchema>) {
   revalidatePath("/")
 }
 
-export async function deleteBucket(input: z.infer<typeof archiveSchema>) {
+export async function restoreBucket(input: z.infer<typeof archiveBucketSchema>) {
   const userId = await requireUserId()
-  const { bucketId } = archiveSchema.parse(input)
+  return restoreBucketCore(userId, input)
+}
+
+export async function deleteBucketCore(
+  userId: string,
+  input: z.infer<typeof archiveBucketSchema>,
+) {
+  const { bucketId } = archiveBucketSchema.parse(input)
   // Only allow hard-delete on already-archived pots so an accidental tap from
   // the main app can never wipe a live pot's history. Cascade in the schema
   // takes care of the transactions.
@@ -135,20 +145,13 @@ export async function deleteBucket(input: z.infer<typeof archiveSchema>) {
   revalidatePath("/months")
 }
 
-const updateSchema = z.object({
-  bucketId: z.string().min(1),
-  name: z.string().min(1).max(40),
-  target: z.number().int().positive(),
-  color: colorEnum,
-  icon: z.string().min(1).max(20),
-  kind: kindEnum,
-  dueDayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
-  carryOver: z.boolean(),
-})
-
-export async function updateBucket(input: z.infer<typeof updateSchema>) {
+export async function deleteBucket(input: z.infer<typeof archiveBucketSchema>) {
   const userId = await requireUserId()
-  const { bucketId, ...rest } = updateSchema.parse(input)
+  return deleteBucketCore(userId, input)
+}
+
+export async function updateBucketCore(userId: string, input: z.infer<typeof updateBucketSchema>) {
+  const { bucketId, ...rest } = updateBucketSchema.parse(input)
   await prisma.bucket.updateMany({
     where: { id: bucketId, userId },
     data: {
@@ -159,13 +162,16 @@ export async function updateBucket(input: z.infer<typeof updateSchema>) {
   revalidatePath("/")
 }
 
-const reorderSchema = z.object({
-  bucketIds: z.array(z.string().min(1)).min(1),
-})
-
-export async function reorderBuckets(input: z.infer<typeof reorderSchema>) {
+export async function updateBucket(input: z.infer<typeof updateBucketSchema>) {
   const userId = await requireUserId()
-  const { bucketIds } = reorderSchema.parse(input)
+  return updateBucketCore(userId, input)
+}
+
+export async function reorderBucketsCore(
+  userId: string,
+  input: z.infer<typeof reorderBucketsSchema>,
+) {
+  const { bucketIds } = reorderBucketsSchema.parse(input)
   await prisma.$transaction(
     bucketIds.map((id, idx) =>
       prisma.bucket.updateMany({
@@ -175,4 +181,9 @@ export async function reorderBuckets(input: z.infer<typeof reorderSchema>) {
     ),
   )
   revalidatePath("/")
+}
+
+export async function reorderBuckets(input: z.infer<typeof reorderBucketsSchema>) {
+  const userId = await requireUserId()
+  return reorderBucketsCore(userId, input)
 }

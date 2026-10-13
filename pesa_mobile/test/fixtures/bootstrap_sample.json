@@ -1,0 +1,392 @@
+{
+  "profile": {
+    "id": "cmtqah4xl00821nckrtpqcgfq",
+    "displayName": "Web Check",
+    "email": "webcheck2+1788728013@pesa.dev",
+    "salary": 14000,
+    "currency": "GH₵",
+    "monthLabel": "September 2026",
+    "roundUpsEnabled": false,
+    "roundUpStep": 50,
+    "paydayRemindersOn": false,
+    "paydayDayOfMonth": null,
+    "appLockEnabled": false,
+    "pushPaydayOn": false,
+    "pushBucketHitOn": true,
+    "pushWrapOn": true,
+    "pushBillsDueOn": true,
+    "autoPaydayOn": false,
+    "hasPushSubscription": false,
+    "hasSavingsBucket": true,
+    "tourCompleted": false
+  },
+  "onboardedAt": null,
+  "buckets": [
+    {
+      "id": "cmtqah68000871nck4fsjlh8l",
+      "name": "Rent",
+      "target": 3500,
+      "allocated": 0,
+      "spent": 0,
+      "color": "clay",
+      "icon": "home",
+      "priority": 1,
+      "kind": "essential",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah68000881nckqgx3ogqq",
+      "name": "Savings",
+      "target": 2000,
+      "allocated": 0,
+      "spent": 0,
+      "color": "green",
+      "icon": "piggy",
+      "priority": 2,
+      "kind": "future",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah68000891nckdxm5miyu",
+      "name": "Mom",
+      "target": 1200,
+      "allocated": 0,
+      "spent": 0,
+      "color": "rose",
+      "icon": "heart",
+      "priority": 3,
+      "kind": "people",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008a1nck1p1lesyy",
+      "name": "SIP",
+      "target": 1500,
+      "allocated": 0,
+      "spent": 0,
+      "color": "gold",
+      "icon": "leaf",
+      "priority": 4,
+      "kind": "future",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008b1nckbvopkh1q",
+      "name": "Emergency",
+      "target": 800,
+      "allocated": 0,
+      "spent": 0,
+      "color": "sage",
+      "icon": "shield",
+      "priority": 5,
+      "kind": "future",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008c1nckxsezfhx8",
+      "name": "Tithe",
+      "target": 1400,
+      "allocated": 0,
+      "spent": 0,
+      "color": "gold",
+      "icon": "sun",
+      "priority": 6,
+      "kind": "give",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008d1nckyl3gl0s0",
+      "name": "House keep",
+      "target": 900,
+      "allocated": 0,
+      "spent": 0,
+      "color": "clay",
+      "icon": "broom",
+      "priority": 7,
+      "kind": "essential",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008e1nckp7vdgx6s",
+      "name": "Internet",
+      "target": 280,
+      "allocated": 0,
+      "spent": 0,
+      "color": "sage",
+      "icon": "wifi",
+      "priority": 8,
+      "kind": "bills",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008f1nckzwvrqqxj",
+      "name": "Gas",
+      "target": 220,
+      "allocated": 0,
+      "spent": 0,
+      "color": "rose",
+      "icon": "flame",
+      "priority": 9,
+      "kind": "bills",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    },
+    {
+      "id": "cmtqah680008g1ncky61ecpzu",
+      "name": "Light bill",
+      "target": 400,
+      "allocated": 0,
+      "spent": 0,
+      "color": "gold",
+      "icon": "bulb",
+      "priority": 10,
+      "kind": "bills",
+      "dueDayOfMonth": null,
+      "carryOver": false,
+      "projection": {
+        "avgPerMonth": 0,
+        "lifetimeBalance": 0,
+        "monthsToGoal": null,
+        "etaIso": null,
+        "goalReached": false
+      }
+    }
+  ],
+  "ledger": [],
+  "months": [
+    {
+      "month": "Apr",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "May",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Jun",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Jul",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Aug",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Sep",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    }
+  ],
+  "netWorth": 0,
+  "paydayTemplate": [],
+  "avgEssentialsPerMonth": 0,
+  "annualMonths": [
+    {
+      "month": "Jan",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Feb",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Mar",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Apr",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "May",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Jun",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Jul",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Aug",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Sep",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Oct",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Nov",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    },
+    {
+      "month": "Dec",
+      "saved": 0,
+      "gave": 0,
+      "lived": 0,
+      "total": 0
+    }
+  ],
+  "filledStreak": 0,
+  "incomeSources": [
+    {
+      "id": "cmtqah5ta00841nckhbvglr96",
+      "name": "Salary",
+      "amount": 14000,
+      "active": true
+    }
+  ],
+  "bankAccounts": [
+    {
+      "id": "cmtqah61r00861nckrorkhtcq",
+      "name": "Bank",
+      "icon": "wallet",
+      "isPrimary": true,
+      "balance": 14000
+    }
+  ],
+  "bankLedger": [
+    {
+      "id": "cmtqah89p008k1nck9not04pm",
+      "accountId": "cmtqah61r00861nckrorkhtcq",
+      "amount": 14000,
+      "kind": "income",
+      "note": "Payday credit",
+      "occurredAt": "2026-09-06T20:53:38.248Z"
+    }
+  ],
+  "monthlyBankSpend": 0,
+  "projects": [],
+  "milestones": [],
+  "milestoneLedger": []
+}

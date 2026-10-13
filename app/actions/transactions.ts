@@ -9,22 +9,20 @@ import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
 import { applyPaydayTemplateForUser } from "@/lib/payday"
 import { getPrimaryAccountId } from "@/lib/bank"
-
-const disburseSchema = z.object({
-  bucketId: z.string().min(1),
-  amount: z.number().int().positive(),
-  note: z.string().max(200).optional(),
-  method: z.string().max(40).optional(),
-  occurredAt: z.coerce.date().optional(),
-})
+import {
+  applyPaydayTemplateSchema,
+  bucketTransferSchema,
+  disburseManySchema,
+  disburseSchema,
+  spendSchema,
+} from "@/lib/mobile/schemas"
 
 function isInCurrentCalendarMonth(d: Date) {
   const now = new Date()
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
 }
 
-export async function disburse(input: z.infer<typeof disburseSchema>) {
-  const userId = await requireUserId()
+export async function disburseCore(userId: string, input: z.infer<typeof disburseSchema>) {
   const { bucketId, amount, note, method, occurredAt } = disburseSchema.parse(input)
   // `allocated`/`spent` are a live tally for the *current* calendar month only.
   // A backdated entry belongs to its own past month, so it lands as a
@@ -168,20 +166,10 @@ export async function disburse(input: z.infer<typeof disburseSchema>) {
   return { roundUp }
 }
 
-const disburseManySchema = z.object({
-  entries: z
-    .array(
-      z.object({
-        bucketId: z.string().min(1),
-        amount: z.number().int().positive(),
-      }),
-    )
-    .min(1)
-    .max(50),
-  note: z.string().max(200).optional(),
-  method: z.string().max(40).optional(),
-  occurredAt: z.coerce.date().optional(),
-})
+export async function disburse(input: z.infer<typeof disburseSchema>) {
+  const userId = await requireUserId()
+  return disburseCore(userId, input)
+}
 
 /**
  * Disburse to several pots in one shot — used by the "add to a past month"
@@ -190,8 +178,10 @@ const disburseManySchema = z.object({
  * Round-ups and bucket-hit pushes are intentionally skipped here — bulk past
  * entries are a catch-up, not a live payday ritual.
  */
-export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
-  const userId = await requireUserId()
+export async function disburseManyCore(
+  userId: string,
+  input: z.infer<typeof disburseManySchema>,
+) {
   const { entries, note, method, occurredAt } = disburseManySchema.parse(input)
   const inCurrentMonth = !occurredAt || isInCurrentCalendarMonth(occurredAt)
 
@@ -251,40 +241,27 @@ export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
   return { applied: valid.length }
 }
 
-const paydayTemplateSchema = z.object({
-  drafts: z
-    .array(
-      z.object({
-        bucketId: z.string().min(1),
-        amount: z.number().int().positive(),
-        note: z.string().max(200).optional(),
-        method: z.string().max(40).optional(),
-      }),
-    )
-    .min(1)
-    .max(50),
-})
-
-export async function applyPaydayTemplate(
-  input: z.infer<typeof paydayTemplateSchema>,
-) {
+export async function disburseMany(input: z.infer<typeof disburseManySchema>) {
   const userId = await requireUserId()
-  const { drafts } = paydayTemplateSchema.parse(input)
+  return disburseManyCore(userId, input)
+}
+
+export async function applyPaydayTemplateCore(
+  userId: string,
+  input: z.infer<typeof applyPaydayTemplateSchema>,
+) {
+  const { drafts } = applyPaydayTemplateSchema.parse(input)
   const result = await applyPaydayTemplateForUser(userId, drafts)
   revalidatePath("/")
   return result
 }
 
-const spendSchema = z.object({
-  bucketId: z.string().min(1),
-  amount: z.number().int().positive(),
-  note: z.string().max(200).optional(),
-  method: z.string().max(40).optional(),
-  occurredAt: z.coerce.date().optional(),
-})
-
-export async function spend(input: z.infer<typeof spendSchema>) {
+export async function applyPaydayTemplate(input: z.infer<typeof applyPaydayTemplateSchema>) {
   const userId = await requireUserId()
+  return applyPaydayTemplateCore(userId, input)
+}
+
+export async function spendCore(userId: string, input: z.infer<typeof spendSchema>) {
   const { bucketId, amount, note, method, occurredAt } = spendSchema.parse(input)
 
   const bucket = await prisma.bucket.findFirst({
@@ -323,21 +300,13 @@ export async function spend(input: z.infer<typeof spendSchema>) {
   }
 }
 
-const transferSchema = z
-  .object({
-    fromBucketId: z.string().min(1),
-    toBucketId: z.string().min(1),
-    amount: z.number().int().positive(),
-    note: z.string().max(200).optional(),
-  })
-  .refine((d) => d.fromBucketId !== d.toBucketId, {
-    message: "Pick two different pots",
-    path: ["toBucketId"],
-  })
-
-export async function transfer(input: z.infer<typeof transferSchema>) {
+export async function spend(input: z.infer<typeof spendSchema>) {
   const userId = await requireUserId()
-  const { fromBucketId, toBucketId, amount, note } = transferSchema.parse(input)
+  return spendCore(userId, input)
+}
+
+export async function transferCore(userId: string, input: z.infer<typeof bucketTransferSchema>) {
+  const { fromBucketId, toBucketId, amount, note } = bucketTransferSchema.parse(input)
 
   const [from, to] = await Promise.all([
     prisma.bucket.findFirst({
@@ -389,4 +358,9 @@ export async function transfer(input: z.infer<typeof transferSchema>) {
   ])
 
   revalidatePath("/")
+}
+
+export async function transfer(input: z.infer<typeof bucketTransferSchema>) {
+  const userId = await requireUserId()
+  return transferCore(userId, input)
 }

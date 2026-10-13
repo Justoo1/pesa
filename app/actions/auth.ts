@@ -1,19 +1,13 @@
 "use server"
 
 import { randomBytes } from "crypto"
-import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { AuthError } from "next-auth"
 import { prisma } from "@/lib/db"
 import { sendEmail } from "@/lib/email"
 import { seedNewUser } from "@/lib/seed"
 import { signIn, signOut } from "@/auth"
-
-const registerSchema = z.object({
-  name: z.string().min(1).max(60),
-  email: z.string().email(),
-  password: z.string().min(8).max(120),
-})
+import { registerSchema } from "@/lib/mobile/schemas"
 
 export type AuthResult = { ok: true } | { ok: false; error: string }
 
