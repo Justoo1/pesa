@@ -322,3 +322,74 @@ export async function loadAvgEssentialsPerMonth(userId: string): Promise<number>
   const total = txns.reduce((s, t) => s + t.amount, 0)
   return Math.max(0, Math.round(total / 3))
 }
+
+export type MonthDetail = {
+  ym: string
+  label: string // "May 2026"
+  isPastMonth: boolean
+  saved: number
+  gave: number
+  lived: number
+  total: number
+  transactions: {
+    id: string
+    amount: number
+    note: string
+    method: string
+    occurredAt: string
+    bucket: { name: string; icon: string; color: string; kind: string }
+  }[]
+}
+
+/**
+ * Every pot transaction in one calendar month (newest first) plus its
+ * saved/gave/lived totals. Shared by the web `/months/[ym]` page and the
+ * mobile `GET /api/mobile/months/:ym` route. Returns null for a malformed ym.
+ */
+export async function loadMonthDetail(userId: string, ym: string): Promise<MonthDetail | null> {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return null
+  const [year, month] = ym.split("-").map(Number)
+  if (month < 1 || month > 12) return null
+  const start = new Date(year, month - 1, 1)
+  const end = new Date(year, month, 1)
+  const label = start.toLocaleString("en-US", { month: "long", year: "numeric" })
+
+  const txns = await prisma.transaction.findMany({
+    where: { userId, occurredAt: { gte: start, lt: end } },
+    orderBy: { occurredAt: "desc" },
+    include: {
+      bucket: { select: { name: true, icon: true, color: true, kind: true } },
+    },
+  })
+
+  const now = new Date()
+  const isPastMonth =
+    year < now.getFullYear() || (year === now.getFullYear() && month - 1 < now.getMonth())
+
+  let saved = 0
+  let gave = 0
+  let lived = 0
+  for (const t of txns) {
+    if (SAVED_KINDS.has(t.bucket.kind)) saved += t.amount
+    else if (GAVE_KINDS.has(t.bucket.kind)) gave += t.amount
+    else if (LIVED_KINDS.has(t.bucket.kind)) lived += t.amount
+  }
+
+  return {
+    ym,
+    label,
+    isPastMonth,
+    saved,
+    gave,
+    lived,
+    total: saved + gave + lived,
+    transactions: txns.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      note: t.note,
+      method: t.method,
+      occurredAt: t.occurredAt.toISOString(),
+      bucket: t.bucket,
+    })),
+  }
+}

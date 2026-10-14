@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'auth_header.dart';
 import 'auth_provider.dart';
 
 class EmailCodeScreen extends ConsumerStatefulWidget {
@@ -58,9 +59,15 @@ class _EmailCodeScreenState extends ConsumerState<EmailCodeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sign in with a code')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: _codeSent ? _buildCodeStep(context, authState) : _buildEmailStep(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AuthHeader(subtitle: "We'll email you a 6-digit code."),
+            _codeSent ? _buildCodeStep(context, authState) : _buildEmailStep(context),
+          ],
+        ),
       ),
     );
   }

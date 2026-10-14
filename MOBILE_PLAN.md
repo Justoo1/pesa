@@ -8,11 +8,11 @@ Do not build multiple phases in one sitting. Do not skip ahead. Do not re-derive
 
 ## STATUS
 
-- Current phase: 3.5
-- Next step to run: 3.5.1
-- Last completed step: 3.4
+- Current phase: 7
+- Next step to run: 7.1
+- Last completed step: 6.2 (and 7.2)
 - Blocked: no
-- Last updated: 2026-09-10 by implementation session (Phase 3.5 inserted at user request, starting now)
+- Last updated: 2026-10-14 by implementation session (3.5.3–6.2 + 7.2 in one session at user request)
 
 ## SESSION LOG
 
@@ -43,6 +43,21 @@ Do not build multiple phases in one sitting. Do not skip ahead. Do not re-derive
   - 3.4 (Flutter UI): built out pot CRUD + disburse/spend/transfer sheets and a real Bank tab, verified with a new `integration_test/pot_and_bank_actions_test.dart` that drives the entire acceptance flow against the live backend. This surfaced and fixed three real app bugs (Hero tag collision from `IndexedStack` keeping every tab's FAB mounted simultaneously; a stale-`BuildContext`-after-`Navigator.pop()` bug in both action sheets that could silently no-op the follow-up dialog/provider calls; the seeded primary bank account being named literally `"Bank"`, colliding with the nav tab label in an unscoped test finder) — see the 3.4 checklist entry above for the full explanation of each, since future phases will hit the same two Flutter footguns (IndexedStack + shared resource names) again.
   - Environment note for future sessions: this box is **not exclusively ours** — `next-server`/`next dev` processes accumulate across sessions if only the launcher process is killed (`pkill -f "next dev"` doesn't touch the actual `next-server` worker it spawns), eventually exhausting memory; check `ps -u $(whoami) -o pid,rss,cmd | grep next-server` and kill those PIDs directly when done, not just the launcher. Also, **port 3000 is periodically occupied by an unrelated root-owned process** on this shared host (a different app entirely) — `npm run dev` silently falls back to 3001/3002/etc. in that case, so always check `/tmp/pesa-dev.log` (or wherever dev server output is redirected) for the actual bound port rather than assuming 3000; pass it to Flutter via `--dart-define=API_BASE_URL=http://localhost:<port>`. Separately, `nvm`'s Node isn't always on `$PATH` in a fresh non-interactive shell in this environment — if `npm`/`node` resolve to a Windows binary (visible as `UNC paths are not supported` errors), prepend `/home/jay/.nvm/versions/node/v24.14.1/bin` to `PATH` explicitly.
   - Next session: start at step 4.0 (read `app/months/page.tsx` and `app/months/[ym]/page.tsx`, note findings in the session log — no code yet), then 4.1 (months list + month detail endpoints) and 4.2 (Insights + Months tabs in Flutter). Re-read `app/months/page.tsx`, `app/months/[ym]/page.tsx`, `lib/insights.ts` before starting.
+
+- 2026-10-14: At the user's explicit request ("continue with the other screens"), ran 3.5.3 → 6.2 in one session instead of one step per session. Dev target is now **Windows host + Android emulator** (`emulator-5554`, `--dart-define=API_BASE_URL=http://10.0.2.2:3000`, Flutter at `C:\flutter\bin`), not WSL/Linux desktop.
+  - 3.5.3: was already built (hero card + pot grid) but never verified. Ported the web `BucketCard` exactly into `pot_grid_tile.dart` ("GH₵300 left of GH₵500" + spent overlay once a pot has spending; "Full" only when nothing spent) — this changed two assertions in `pot_and_bank_actions_test.dart`.
+  - 3.5.4: Bank tab rebuilt to match `bank.tsx` (navy hero with literal colors added to `PesaColors.bankNavy*`, spendable/spent `MiniStat`s, Other accounts, Statement). Account tap → `showBankAccountDetailSheet` (balance, actions, per-account statement, archive for non-primary; added `BankRepository.archiveAccount`). Bank FAB removed (web uses a "+ New" chip) — test updated to tap "New" and the hero's "Move".
+  - 3.5.5: shared `auth_header.dart` (wordmark + "Every cedi, a place to land.") on all three auth screens, bodies now scroll. Labels/button types unchanged; `app_test.dart` passes unmodified.
+  - 4.0: findings — `/months` = `loadAllMonths` (excludes plain spends); `/months/[ym]` lists *all* pot transactions that month incl. spends (negative), totals by SAVED/GAVE/LIVED kinds, plus an "add past transaction" action (not ported to mobile).
+  - 4.1: extracted the web month-detail query into `lib/insights.ts` `loadMonthDetail(userId, ym)` (web page now calls it); `GET /api/mobile/months` and `/months/:ym` (404 on bad ym). Curl-verified list and detail totals agree.
+  - 4.2: `features/insights/insights_screen.dart` (savings-rate ring, financial health using bucket projections exactly like the web, 6-month stacked flow with Saved/All toggle, Where it went, net worth) + `features/months/*` (list → detail routes `/months`, `/months/:ym`). Net-worth detail sheet and the milestone banner are not ported.
+  - 5.1: `projects.ts` → core+wrapper, schemas moved to `lib/mobile/schemas.ts`; routes `projects`, `projects/[id]` (PATCH), `projects/[id]/archive`, `milestones`, `milestones/[id]` (PATCH), `milestones/[id]/archive`, `milestones/[id]/fund`. Curl-verified the full acceptance flow (in_progress/locked → locked fund 400 → fund to target flips statuses; bank −1000).
+  - 5.2: `features/projects/*` — list tab, `/projects/:id` road screen (port of `project-road-svg.tsx` layout constants + bezier path painter), `fund_milestone_sheet.dart` (watches bootstrap by id; locked → message + disabled button). Generic `core/widgets/form_sheet.dart` used for all simple create/edit forms.
+  - 6.1: `settings.ts` + `income-sources.ts` → core+wrapper (schemas renamed `updateProfileSchema`, `appLockPinSchema`, `createIncomeSourceSchema`, …). `deleteAccountCore` no longer signs out — the web wrapper does. Routes under `settings/{profile,round-ups,payday,push,app-lock,app-lock/verify,delete-account,reset-month}` and `income-sources[/id[/toggle]]`. Curl-verified incl. salary resync (16000 → 17000 → 14000) and wrong-PIN/wrong-email errors.
+  - 6.2: More tab = `features/settings/settings_screen.dart`, `/settings/income-sources`, `app_lock.dart` (`AppLockGate` wraps `/`; in-memory unlock flag, re-locks on `paused`, PIN always verified via API). 7.2's disabled "Push notifications — Coming soon" row is included. Like the web LockGate this is a client-side privacy screen, not API enforcement.
+  - Verification: `flutter analyze` clean; `flutter test` passes; integration tests `app_test`, `home_dashboard_test`, `pot_and_bank_actions_test`, new `insights_months_test`, new `projects_settings_test` all pass on the emulator with zero framework exceptions in the logs. `email_code_test` was **not** run: it reads `/tmp/pesa-dev.log` from the device's filesystem, which only worked on Linux desktop — needs a different code-retrieval approach for Android.
+  - Gotchas for the next agent: (1) don't edit Dart files while `flutter test integration_test/...` is compiling — the Gradle build picks up half-edited files; (2) `PesaCard` is now Material-backed — a `ListTile` inside a colored `DecoratedBox` trips a framework assertion that fails integration tests; (3) Turbopack's dev server sometimes misses newly created route files or new exports (404 / "is not a function") — re-save/recreate the file or restart `npm run dev`; (4) `dart format` must use `--page-width 100` or it reflows the whole codebase; (5) Wrap tab is still a placeholder (no phase covers it).
+  - Next session: start at 7.1.
 
 ---
 
@@ -225,17 +240,17 @@ Re-read before starting: `app/globals.css` (full file — every color/radius/sha
   Files touched: `lib/core/widgets/pesa_card.dart` (card + card-line variants), `lib/core/widgets/pesa_button.dart` (primary/green/clay/ghost/soft pill button variants + circular icon-button variant), `lib/core/widgets/row_icon_chip.dart` (the color-chip widget taking a `BucketColor` string + `IconData`), `lib/core/widgets/pesa_bottom_nav.dart` (custom bottom nav: Home / Bank / **center Disburse FAB** / Insights / Projects / More — 6 slots; the raised-FAB visual per the tokens above; tapping the FAB opens a simple "pick a pot to disburse into" bottom sheet reusing `PotRepository.disburse` — this is the one new bit of *behavior* in an otherwise pure-styling phase, matching the web's primary CTA). Replace `home_screen.dart`'s stock `NavigationBar` with this new `PesaBottomNav`.
   Done when: `flutter analyze` clean; visually the bottom bar matches the screenshots' 6-item-plus-FAB layout; tapping the FAB → picking a pot → entering an amount → disburses and the dashboard updates (reuse the existing `pot_and_bank_actions_test.dart` pattern to add one assertion, or a small new integration test, for this specific new entry point).
 
-- [ ] **3.5.3 — Reskin Home tab: hero "left to disburse" card + pot grid**
+- [x] **3.5.3 — Reskin Home tab: hero "left to disburse" card + pot grid**
   Files touched: `lib/features/home/home_screen.dart`, `lib/features/home/widgets/{bank_card,pot_card}.dart` (rework or replace).
   Do: compute "left to disburse" client-side from data already in `HomeData` (`profile.salary - sum(activeBuckets.map(b => b.allocated))`) — no new endpoint needed. Hero card: dark green gradient (`#2A3A22 → #3D5234 → #4A6240`), eyebrow "LEFT TO DISBURSE" dot+label, big serif number, clay-gradient progress bar (disbursed / salary), footer stats line, "Send to a pot" pill CTA (opens the same disburse-picker sheet as the bottom nav FAB). Below it: 2-column grid of compact pot cards (`row-icon` chip, name, target, a "Full" pill when `allocated >= target`) replacing the current full-width `PotCard` list — matches the screenshot's "Your pots" grid exactly.
   Done when: `flutter analyze` clean; visual check + integration test confirms the hero numbers match `salary`/`sum(allocated)` from a known seeded user, and tapping a grid pot card still opens the existing disburse/spend/transfer action sheet.
 
-- [ ] **3.5.4 — Reskin Bank tab: navy balance card + statement list**
+- [x] **3.5.4 — Reskin Bank tab: navy balance card + statement list**
   Files touched: `lib/features/bank/bank_screen.dart`.
   Do: primary account card restyled as a dark navy gradient hero (matching the screenshot — this is a *new* literal color not in the extracted token list above; sample it from the screenshot at implementation time and add it as a named constant, e.g. `bankNavy`/`bankNavyDeep`, alongside a session-log note that it wasn't in `globals.css`'s `:root` — check `home.tsx`'s bank-card counterpart or the actual `.card` override in `components/pesa/screens/bank.tsx` first in case it *is* tokenized and the explore agent simply didn't check that file), "Add funds"/"Log a spend" pill buttons, spendable/spent chip row, "Other accounts" section, and a "Statement" list of recent `bankLedger` entries (already in `HomeData`, unused until now) styled as `.row` items with a signed amount.
   Done when: `flutter analyze` clean; statement list shows real ledger entries from bootstrap data; Add funds/Log a spend buttons still work via the existing `BankRepository`.
 
-- [ ] **3.5.5 — Reskin auth screens**
+- [x] **3.5.5 — Reskin auth screens**
   Files touched: `lib/features/auth/{login_screen,register_screen,email_code_screen}.dart`.
   Do: apply the new theme's card/pill-button/input styling; add the serif "Every cedi, a place to land." tagline treatment where it fits (e.g. above the form) for visual consistency with the web's status-bar slogan, without inventing new copy/flows.
   Done when: `flutter analyze` clean; all three screens visually match the warm palette and pill-button styling; existing `app_test.dart`/`email_code_test.dart` integration tests still pass unmodified (this step must not change any widget's findable text/type in a way that breaks those finders — check button labels and field labels stay exactly `'Email'`, `'Password'`, `'Sign in'`, etc.).
@@ -246,13 +261,13 @@ Re-read before starting: `app/globals.css` (full file — every color/radius/sha
 
 Re-read before starting: `app/months/page.tsx`, `app/months/[ym]/page.tsx`, `lib/insights.ts`.
 
-- [ ] **4.0 — Explore**: read the two months pages; note (session log only, no code) exactly what data/actions `app/months/[ym]/page.tsx` exposes.
+- [x] **4.0 — Explore**: read the two months pages; note (session log only, no code) exactly what data/actions `app/months/[ym]/page.tsx` exposes.
 
-- [ ] **4.1 — Backend: months list + month detail endpoints**
+- [x] **4.1 — Backend: months list + month detail endpoints**
   Files touched: `app/api/mobile/months/route.ts` (wraps `loadAllMonths`), `app/api/mobile/months/[ym]/route.ts` (transactions for that month, mirroring the web page's query — reuse, don't reinvent).
   Done when: curl `/api/mobile/months` matches the web `/months` totals; curl a specific month matches that month's web transactions.
 
-- [ ] **4.2 — Flutter: Insights tab + Months history tab**
+- [x] **4.2 — Flutter: Insights tab + Months history tab**
   Files touched: `pesa_mobile/lib/features/insights/*` (uses bootstrap's `months`/`annualMonths` — no new network call for the summary view), `lib/features/months/*` (hits the new endpoints).
   Done when: Insights tab shows real 6-month saved/gave/lived + net worth matching web; Months tab lists real months and drills into real transactions; `flutter analyze` clean.
 
@@ -262,11 +277,11 @@ Re-read before starting: `app/months/page.tsx`, `app/months/[ym]/page.tsx`, `lib
 
 Re-read before starting: `app/actions/projects.ts` (especially `computeStatuses` — render its result, never reimplement it in Dart).
 
-- [ ] **5.1 — Refactor `projects.ts` into core+wrapper; add project/milestone endpoints**
+- [x] **5.1 — Refactor `projects.ts` into core+wrapper; add project/milestone endpoints**
   Files touched: `app/actions/projects.ts`, `app/api/mobile/projects/route.ts`, `.../[id]/route.ts`, `.../[id]/archive/route.ts`, `app/api/mobile/milestones/route.ts`, `.../[id]/route.ts`, `.../[id]/archive/route.ts`, `.../[id]/fund/route.ts`.
   Done when: create project w/ two milestones → first `in_progress`, second `locked` (via bootstrap); fund locked one → 400 `"Complete the previous milestone first"`; fund first to target → flips to `completed`, second flips to `in_progress`.
 
-- [ ] **5.2 — Flutter: Projects list + milestone roadmap UI + fund action**
+- [x] **5.2 — Flutter: Projects list + milestone roadmap UI + fund action**
   Files touched: `pesa_mobile/lib/features/projects/{projects_screen,project_detail_screen,fund_milestone_sheet}.dart`.
   Done when: real projects/milestones render from bootstrap; locked milestones show disabled fund button; funding updates the roadmap after refetch matching server-computed statuses exactly.
 
@@ -276,12 +291,12 @@ Re-read before starting: `app/actions/projects.ts` (especially `computeStatuses`
 
 Re-read before starting: `app/actions/settings.ts`, `app/actions/income-sources.ts`.
 
-- [ ] **6.1 — Refactor `settings.ts` + `income-sources.ts` into core+wrapper; add endpoints**
+- [x] **6.1 — Refactor `settings.ts` + `income-sources.ts` into core+wrapper; add endpoints**
   Files touched: both action files, `app/api/mobile/settings/{profile,round-ups,payday,app-lock}/route.ts`, `app/api/mobile/settings/delete-account/route.ts`, `app/api/mobile/income-sources/route.ts`, `.../[id]/route.ts`, `.../[id]/toggle/route.ts`.
   Note: expose `setPushPrefs` (boolean flags only) but not `sendTestPush` until Phase 7/8 wires real mobile push.
   Done when: curl updates display name/currency, toggles round-ups, sets payday day, sets+verifies an app-lock PIN (correct → ok:true, wrong → ok:false), creates/edits/toggles/deletes an income source and confirms `User.salary` resyncs via bootstrap.
 
-- [ ] **6.2 — Flutter: Settings screens + income sources CRUD + local app-lock gate**
+- [x] **6.2 — Flutter: Settings screens + income sources CRUD + local app-lock gate**
   Files touched: `pesa_mobile/lib/features/settings/{settings_screen,income_sources_screen,app_lock_screen}.dart`, router update for an app-lock gate on cold start/resume.
   Do: PIN verification always calls the server endpoint (never a purely local check), matching the web app's design; delete-account requires typing the exact account email before calling the endpoint.
   Done when: settings changes reflect after refetch; app-lock PIN gate blocks access until server-verified; delete-account flow matches web app's confirmation UX.
@@ -296,7 +311,7 @@ Re-read before starting: `lib/push.ts`, `prisma/schema.prisma` `PushSubscription
   Files touched: `prisma/schema.prisma` (new additive `MobileDeviceToken { id, userId, fcmToken, platform, createdAt }`, migration), `app/api/mobile/push/register-token/route.ts` (accepts/upserts a token, does nothing else).
   Done when: migration applies; curl posting a fake token succeeds and the row appears in the DB; confirm (session log) no cron/`lib/push.ts` path reads this table yet — intentionally inert.
 
-- [ ] **7.2 — Flutter: disabled "Push notifications — coming soon" settings row**
+- [x] **7.2 — Flutter: disabled "Push notifications — coming soon" settings row**
   Files touched: `pesa_mobile/lib/features/settings/settings_screen.dart` (visually-disabled toggle row, no new dependency).
   Done when: stub row renders; `flutter analyze` clean; confirm (session log) `firebase_messaging`/APNs setup stays out of scope until a future phase is explicitly added.
 

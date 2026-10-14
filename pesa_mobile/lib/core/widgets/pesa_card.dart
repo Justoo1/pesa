@@ -20,14 +20,21 @@ class PesaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
+    final radius = BorderRadius.circular(PesaRadius.lg);
+    // The fill is a Material (not a DecoratedBox) so ListTiles and InkWells
+    // inside a card get their ink/hover effects instead of tripping
+    // Flutter's "DecoratedBox will hide those effects" assertion.
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: color ?? PesaColors.bgCard,
-        borderRadius: BorderRadius.circular(PesaRadius.lg),
+        borderRadius: radius,
         boxShadow: withShadow ? PesaShadows.sm : null,
       ),
-      child: child,
+      child: Material(
+        color: color ?? PesaColors.bgCard,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(padding: padding, child: child),
+      ),
     );
   }
 }

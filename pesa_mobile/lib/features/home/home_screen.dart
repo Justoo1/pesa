@@ -5,6 +5,9 @@ import '../../core/models/payday_draft.dart';
 import '../../core/widgets/pesa_bottom_nav.dart';
 import '../auth/auth_provider.dart';
 import '../bank/bank_screen.dart';
+import '../insights/insights_screen.dart';
+import '../projects/projects_screen.dart';
+import '../settings/settings_screen.dart';
 import '../pots/disburse_picker_sheet.dart';
 import '../pots/pot_action_sheet.dart';
 import '../pots/pot_actions_provider.dart';
@@ -30,28 +33,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final buckets = ref.watch(bootstrapProvider).value?.buckets ?? [];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_tabTitles[_tabIndex]),
-        actions: _tabIndex == 0
-            ? [
+      // Only Home keeps an AppBar (for logout); the other tabs render their
+      // own web-style ScreenHeader instead.
+      appBar: _tabIndex == 0
+          ? AppBar(
+              title: Text(_tabTitles[_tabIndex]),
+              actions: [
                 IconButton(
                   icon: const Icon(Icons.logout),
                   tooltip: 'Log out',
                   onPressed: () => ref.read(authControllerProvider.notifier).logout(),
                 ),
-              ]
-            : null,
-      ),
-      body: IndexedStack(
-        index: _tabIndex,
-        children: const [
-          _HomeTab(),
-          BankScreen(),
-          _PlaceholderTab(label: 'Insights — coming soon'),
-          _PlaceholderTab(label: 'Projects — coming soon'),
-          _PlaceholderTab(label: 'Wrap — coming soon'),
-          _PlaceholderTab(label: 'More — coming soon'),
-        ],
+              ],
+            )
+          : null,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(
+          index: _tabIndex,
+          children: const [
+            _HomeTab(),
+            BankScreen(),
+            InsightsScreen(),
+            ProjectsScreen(),
+            _PlaceholderTab(label: 'Wrap — coming soon'),
+            SettingsScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: PesaBottomNav(
         currentIndex: _tabIndex,
@@ -129,21 +137,18 @@ class _HomeTab extends ConsumerWidget {
                         crossAxisSpacing: 12,
                         childAspectRatio: 1.15,
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final bucket = activeBuckets[index];
-                          return PotGridTile(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final bucket = activeBuckets[index];
+                        return PotGridTile(
+                          bucket: bucket,
+                          currency: currency,
+                          onTap: () => showPotActionSheet(
+                            context: context,
                             bucket: bucket,
-                            currency: currency,
-                            onTap: () => showPotActionSheet(
-                              context: context,
-                              bucket: bucket,
-                              allBuckets: activeBuckets,
-                            ),
-                          );
-                        },
-                        childCount: activeBuckets.length,
-                      ),
+                            allBuckets: activeBuckets,
+                          ),
+                        );
+                      }, childCount: activeBuckets.length),
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 80)),

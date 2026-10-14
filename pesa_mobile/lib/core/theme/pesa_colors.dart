@@ -32,6 +32,15 @@ class PesaColors {
   // tokenized :root variable on the web either).
   static const greenHeroEnd = Color(0xFF4A6240);
 
+  // Bank tab hero card — literals from `components/pesa/screens/bank.tsx`
+  // (inline styles there, not :root tokens).
+  static const bankNavyStart = Color(0xFF23283A);
+  static const bankNavyMid = Color(0xFF333C57);
+  static const bankNavyEnd = Color(0xFF454F72);
+  static const bankMist = Color(0xFFC9CEE0);
+  static const bankMistText = Color(0xFFDCE0F0);
+  static const bankOverdrawn = Color(0xFFF3C9C0);
+
   /// (background, foreground) chip colors per `BucketColor`, ported from
   /// the `.row-icon.{color}` CSS classes. `sage` is visually identical to
   /// `green` as a flat chip — they only diverge in flow-bar gradients,

@@ -167,3 +167,98 @@ export const bankTransferSchema = z
     message: "Pick two different accounts",
     path: ["toAccountId"],
   })
+
+// --- projects & milestones (app/actions/projects.ts) ---
+
+export const createProjectSchema = z.object({
+  name: z.string().min(1).max(60),
+  targetAmount: z.number().int().positive(),
+  targetDate: z.coerce.date().optional(),
+  icon: z.string().min(1).max(20).optional(),
+})
+
+export const updateProjectSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().min(1).max(60),
+  targetAmount: z.number().int().positive(),
+  targetDate: z.coerce.date().nullable().optional(),
+  icon: z.string().min(1).max(20),
+})
+
+export const archiveProjectSchema = z.object({ projectId: z.string().min(1) })
+
+export const createMilestoneSchema = z.object({
+  projectId: z.string().min(1),
+  title: z.string().min(1).max(60),
+  funDetail: z.string().max(140).optional(),
+  targetAmount: z.number().int().positive(),
+  targetDate: z.coerce.date().optional(),
+  bucketId: z.string().min(1).optional(),
+})
+
+export const updateMilestoneSchema = z.object({
+  milestoneId: z.string().min(1),
+  title: z.string().min(1).max(60),
+  funDetail: z.string().max(140).optional(),
+  targetAmount: z.number().int().positive(),
+  targetDate: z.coerce.date().nullable().optional(),
+  bucketId: z.string().min(1).nullable().optional(),
+})
+
+export const archiveMilestoneSchema = z.object({ milestoneId: z.string().min(1) })
+
+export const fundMilestoneSchema = z.object({
+  milestoneId: z.string().min(1),
+  amount: z.number().int().positive(),
+  note: z.string().max(200).optional(),
+})
+
+// --- settings (app/actions/settings.ts) ---
+
+export const updateProfileSchema = z.object({
+  displayName: z.string().min(1).max(60).optional(),
+  currency: z.string().min(1).max(8).optional(),
+  monthLabel: z.string().min(1).max(40).optional(),
+})
+
+export const roundUpsPrefsSchema = z.object({
+  enabled: z.boolean().optional(),
+  step: z.number().int().min(1).max(10000).optional(),
+})
+
+export const paydayPrefsSchema = z.object({
+  enabled: z.boolean(),
+  dayOfMonth: z.number().int().min(1).max(31).optional(),
+  autoPayday: z.boolean().optional(),
+})
+
+export const pushPrefsSchema = z.object({
+  payday: z.boolean().optional(),
+  bucketHit: z.boolean().optional(),
+  wrap: z.boolean().optional(),
+  billsDue: z.boolean().optional(),
+})
+
+export const appLockPinSchema = z.object({ pin: z.string().regex(/^\d{4,8}$/) })
+
+export const deleteAccountSchema = z.object({ confirmEmail: z.string().email() })
+
+// --- income sources (app/actions/income-sources.ts) ---
+
+export const createIncomeSourceSchema = z.object({
+  name: z.string().min(1).max(40),
+  amount: z.number().int().nonnegative(),
+})
+
+export const updateIncomeSourceSchema = z.object({
+  incomeSourceId: z.string().min(1),
+  name: z.string().min(1).max(40),
+  amount: z.number().int().nonnegative(),
+})
+
+export const toggleIncomeSourceSchema = z.object({
+  incomeSourceId: z.string().min(1),
+  active: z.boolean(),
+})
+
+export const deleteIncomeSourceSchema = z.object({ incomeSourceId: z.string().min(1) })

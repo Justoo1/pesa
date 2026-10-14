@@ -6,6 +6,15 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { getPrimaryAccountId } from "@/lib/bank"
+import {
+  archiveMilestoneSchema,
+  archiveProjectSchema,
+  createMilestoneSchema,
+  createProjectSchema,
+  fundMilestoneSchema,
+  updateMilestoneSchema,
+  updateProjectSchema,
+} from "@/lib/mobile/schemas"
 
 type StatusRow = { id: string; currentSaved: number; targetAmount: number; status: string }
 
@@ -46,15 +55,7 @@ async function syncProjectMilestoneStatuses(projectId: string, userId: string) {
   }
 }
 
-const createProjectSchema = z.object({
-  name: z.string().min(1).max(60),
-  targetAmount: z.number().int().positive(),
-  targetDate: z.coerce.date().optional(),
-  icon: z.string().min(1).max(20).optional(),
-})
-
-export async function createProject(input: z.infer<typeof createProjectSchema>) {
-  const userId = await requireUserId()
+export async function createProjectCore(userId: string, input: z.infer<typeof createProjectSchema>) {
   const data = createProjectSchema.parse(input)
   const project = await prisma.project.create({
     data: {
@@ -69,16 +70,7 @@ export async function createProject(input: z.infer<typeof createProjectSchema>) 
   return project
 }
 
-const updateProjectSchema = z.object({
-  projectId: z.string().min(1),
-  name: z.string().min(1).max(60),
-  targetAmount: z.number().int().positive(),
-  targetDate: z.coerce.date().nullable().optional(),
-  icon: z.string().min(1).max(20),
-})
-
-export async function updateProject(input: z.infer<typeof updateProjectSchema>) {
-  const userId = await requireUserId()
+export async function updateProjectCore(userId: string, input: z.infer<typeof updateProjectSchema>) {
   const { projectId, ...rest } = updateProjectSchema.parse(input)
   await prisma.project.updateMany({
     where: { id: projectId, userId },
@@ -87,10 +79,7 @@ export async function updateProject(input: z.infer<typeof updateProjectSchema>) 
   revalidatePath("/")
 }
 
-const archiveProjectSchema = z.object({ projectId: z.string().min(1) })
-
-export async function archiveProject(input: z.infer<typeof archiveProjectSchema>) {
-  const userId = await requireUserId()
+export async function archiveProjectCore(userId: string, input: z.infer<typeof archiveProjectSchema>) {
   const { projectId } = archiveProjectSchema.parse(input)
   const now = new Date()
   await prisma.$transaction([
@@ -106,17 +95,7 @@ export async function archiveProject(input: z.infer<typeof archiveProjectSchema>
   revalidatePath("/")
 }
 
-const createMilestoneSchema = z.object({
-  projectId: z.string().min(1),
-  title: z.string().min(1).max(60),
-  funDetail: z.string().max(140).optional(),
-  targetAmount: z.number().int().positive(),
-  targetDate: z.coerce.date().optional(),
-  bucketId: z.string().min(1).optional(),
-})
-
-export async function createMilestone(input: z.infer<typeof createMilestoneSchema>) {
-  const userId = await requireUserId()
+export async function createMilestoneCore(userId: string, input: z.infer<typeof createMilestoneSchema>) {
   const data = createMilestoneSchema.parse(input)
 
   const project = await prisma.project.findFirst({
@@ -154,17 +133,7 @@ export async function createMilestone(input: z.infer<typeof createMilestoneSchem
   return milestone
 }
 
-const updateMilestoneSchema = z.object({
-  milestoneId: z.string().min(1),
-  title: z.string().min(1).max(60),
-  funDetail: z.string().max(140).optional(),
-  targetAmount: z.number().int().positive(),
-  targetDate: z.coerce.date().nullable().optional(),
-  bucketId: z.string().min(1).nullable().optional(),
-})
-
-export async function updateMilestone(input: z.infer<typeof updateMilestoneSchema>) {
-  const userId = await requireUserId()
+export async function updateMilestoneCore(userId: string, input: z.infer<typeof updateMilestoneSchema>) {
   const { milestoneId, bucketId, ...rest } = updateMilestoneSchema.parse(input)
 
   const milestone = await prisma.milestone.findFirst({
@@ -189,10 +158,7 @@ export async function updateMilestone(input: z.infer<typeof updateMilestoneSchem
   revalidatePath("/")
 }
 
-const archiveMilestoneSchema = z.object({ milestoneId: z.string().min(1) })
-
-export async function archiveMilestone(input: z.infer<typeof archiveMilestoneSchema>) {
-  const userId = await requireUserId()
+export async function archiveMilestoneCore(userId: string, input: z.infer<typeof archiveMilestoneSchema>) {
   const { milestoneId } = archiveMilestoneSchema.parse(input)
 
   const milestone = await prisma.milestone.findFirst({
@@ -209,14 +175,7 @@ export async function archiveMilestone(input: z.infer<typeof archiveMilestoneSch
   revalidatePath("/")
 }
 
-const fundMilestoneSchema = z.object({
-  milestoneId: z.string().min(1),
-  amount: z.number().int().positive(),
-  note: z.string().max(200).optional(),
-})
-
-export async function fundMilestone(input: z.infer<typeof fundMilestoneSchema>) {
-  const userId = await requireUserId()
+export async function fundMilestoneCore(userId: string, input: z.infer<typeof fundMilestoneSchema>) {
   const { milestoneId, amount, note } = fundMilestoneSchema.parse(input)
 
   const milestone = await prisma.milestone.findFirst({
@@ -271,4 +230,39 @@ export async function fundMilestone(input: z.infer<typeof fundMilestoneSchema>) 
 
   await prisma.$transaction(ops)
   revalidatePath("/")
+}
+
+export async function createProject(input: z.infer<typeof createProjectSchema>) {
+  const userId = await requireUserId()
+  return createProjectCore(userId, input)
+}
+
+export async function updateProject(input: z.infer<typeof updateProjectSchema>) {
+  const userId = await requireUserId()
+  return updateProjectCore(userId, input)
+}
+
+export async function archiveProject(input: z.infer<typeof archiveProjectSchema>) {
+  const userId = await requireUserId()
+  return archiveProjectCore(userId, input)
+}
+
+export async function createMilestone(input: z.infer<typeof createMilestoneSchema>) {
+  const userId = await requireUserId()
+  return createMilestoneCore(userId, input)
+}
+
+export async function updateMilestone(input: z.infer<typeof updateMilestoneSchema>) {
+  const userId = await requireUserId()
+  return updateMilestoneCore(userId, input)
+}
+
+export async function archiveMilestone(input: z.infer<typeof archiveMilestoneSchema>) {
+  const userId = await requireUserId()
+  return archiveMilestoneCore(userId, input)
+}
+
+export async function fundMilestone(input: z.infer<typeof fundMilestoneSchema>) {
+  const userId = await requireUserId()
+  return fundMilestoneCore(userId, input)
 }

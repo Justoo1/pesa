@@ -7,6 +7,10 @@ import '../features/auth/email_code_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/months/months_screen.dart';
+import '../features/projects/project_road_screen.dart';
+import '../features/settings/app_lock.dart';
+import '../features/settings/income_sources_screen.dart';
 
 const _authRoutes = {'/login', '/register', '/login/email-code'};
 
@@ -47,13 +51,26 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshNotifier,
     redirect: redirect,
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const AppLockGate(child: HomeScreen()),
+      ),
+      GoRoute(
+        path: '/projects/:id',
+        builder: (context, state) => ProjectRoadScreen(projectId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/settings/income-sources',
+        builder: (context, state) => const IncomeSourcesScreen(),
+      ),
+      GoRoute(path: '/months', builder: (context, state) => const MonthsScreen()),
+      GoRoute(
+        path: '/months/:ym',
+        builder: (context, state) => MonthDetailScreen(ym: state.pathParameters['ym']!),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
-      GoRoute(
-        path: '/login/email-code',
-        builder: (context, state) => const EmailCodeScreen(),
-      ),
+      GoRoute(path: '/login/email-code', builder: (context, state) => const EmailCodeScreen()),
     ],
   );
 });

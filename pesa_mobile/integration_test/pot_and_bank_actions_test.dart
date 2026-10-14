@@ -73,7 +73,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Spend'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
 
-    expect(find.textContaining('Spent GH₵200'), findsOneWidget);
+    // Rent tile now reads "GH₵300 left of GH₵500" (web BucketCard parity).
+    expect(find.textContaining('GH₵300 left of GH₵500'), findsOneWidget);
 
     // --- Transfer Rent -> Savings ---
     await tester.tap(find.text('Rent'));
@@ -89,19 +90,16 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 15));
 
     // Rent: 500 - 200 spent (doesn't touch allocated) - 100 transferred = 400 allocated.
-    expect(find.textContaining('400 / GH₵3,500'), findsOneWidget);
+    expect(find.textContaining('GH₵200 left of GH₵400'), findsOneWidget);
 
     // --- Bank tab: add a second account ---
     // Scoped to the bottom nav (whose labels render uppercase, "BANK") since
     // the seeded primary account is itself named "Bank" (see lib/seed.ts),
     // which would also match an unscoped find.text('Bank').
-    final bankNavTab = find.descendant(
-      of: find.byType(PesaBottomNav),
-      matching: find.text('BANK'),
-    );
+    final bankNavTab = find.descendant(of: find.byType(PesaBottomNav), matching: find.text('BANK'));
     await tester.tap(bankNavTab);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.widgetWithText(TextButton, 'New'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Travel Fund');
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
@@ -109,14 +107,9 @@ void main() {
 
     expect(find.text('Travel Fund'), findsOneWidget);
 
-    // --- Transfer between bank accounts (already on the Bank tab) ---
-    final mainAccountTile = find.ancestor(
-      of: find.text('Primary'),
-      matching: find.byType(ListTile),
-    );
-    await tester.tap(mainAccountTile);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Transfer to another account'));
+    // --- Transfer between bank accounts via the hero card's "Move" button,
+    // which only appears once a second account exists ---
+    await tester.tap(find.text('Move'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
@@ -126,7 +119,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Transfer'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
 
-    expect(find.textContaining('GH₵1,000'), findsOneWidget);
+    // Travel Fund's row in "Other accounts" now shows the moved balance.
+    expect(find.text('GH₵1,000'), findsOneWidget);
   });
 }
 

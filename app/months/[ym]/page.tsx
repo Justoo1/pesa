@@ -6,7 +6,7 @@ import { fmtMoney, fmtTxnDate } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
 import type { BucketColor, IconName } from "@/components/pesa/types"
 import { loadFilledByMonth } from "@/lib/month"
-import { SAVED_KINDS, GAVE_KINDS, LIVED_KINDS } from "@/lib/insights"
+import { loadMonthDetail } from "@/lib/insights"
 import { AddPastTxnButton } from "@/components/pesa/screens/add-past-txn-button"
 
 export const dynamic = "force-dynamic"
@@ -23,23 +23,12 @@ export default async function MonthDetailPage({
   if (!session?.user?.id) redirect("/sign-in")
   const userId = session.user.id
 
-  const [year, month] = ym.split("-").map(Number)
-  const start = new Date(year, month - 1, 1)
-  const end = new Date(year, month, 1)
-  const label = start.toLocaleString("en-US", { month: "long", year: "numeric" })
-
-  const [user, txns, activeBuckets, filledByMonth] = await Promise.all([
+  const [user, detail, activeBuckets, filledByMonth] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { currency: true },
     }),
-    prisma.transaction.findMany({
-      where: { userId, occurredAt: { gte: start, lt: end } },
-      orderBy: { occurredAt: "desc" },
-      include: {
-        bucket: { select: { name: true, icon: true, color: true, kind: true } },
-      },
-    }),
+    loadMonthDetail(userId, ym),
     prisma.bucket.findMany({
       where: { userId, archivedAt: null },
       orderBy: { priority: "asc" },
@@ -47,22 +36,9 @@ export default async function MonthDetailPage({
     }),
     loadFilledByMonth(userId),
   ])
+  if (!detail) notFound()
   const currency = user.currency
-
-  const now = new Date()
-  const isPastMonth =
-    year < now.getFullYear() ||
-    (year === now.getFullYear() && month - 1 < now.getMonth())
-
-  let saved = 0
-  let gave = 0
-  let lived = 0
-  for (const t of txns) {
-    if (SAVED_KINDS.has(t.bucket.kind)) saved += t.amount
-    else if (GAVE_KINDS.has(t.bucket.kind)) gave += t.amount
-    else if (LIVED_KINDS.has(t.bucket.kind)) lived += t.amount
-  }
-  const total = saved + gave + lived
+  const { label, isPastMonth, saved, gave, lived, total, transactions: txns } = detail
 
   return (
     <div className="stage">

@@ -7,22 +7,27 @@ import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
 import { signOut } from "@/auth"
+import {
+  appLockPinSchema,
+  deleteAccountSchema,
+  paydayPrefsSchema,
+  pushPrefsSchema,
+  roundUpsPrefsSchema,
+  updateProfileSchema,
+} from "@/lib/mobile/schemas"
 
-const profileSchema = z.object({
-  displayName: z.string().min(1).max(60).optional(),
-  currency: z.string().min(1).max(8).optional(),
-  monthLabel: z.string().min(1).max(40).optional(),
-})
-
-export async function updateProfile(input: z.infer<typeof profileSchema>) {
-  const userId = await requireUserId()
-  const data = profileSchema.parse(input)
+export async function updateProfileCore(userId: string, input: z.infer<typeof updateProfileSchema>) {
+  const data = updateProfileSchema.parse(input)
   await prisma.user.update({ where: { id: userId }, data })
   revalidatePath("/")
 }
 
-export async function resetMonth() {
+export async function updateProfile(input: z.infer<typeof updateProfileSchema>) {
   const userId = await requireUserId()
+  return updateProfileCore(userId, input)
+}
+
+export async function resetMonthCore(userId: string) {
   // Only clear *this* calendar month — past months are history and must
   // survive a reset (they power /months, insights and the annual wrap).
   const now = new Date()
@@ -43,14 +48,16 @@ export async function resetMonth() {
   revalidatePath(`/months/${ym}`)
 }
 
-const roundUpsSchema = z.object({
-  enabled: z.boolean().optional(),
-  step: z.number().int().min(1).max(10000).optional(),
-})
-
-export async function setRoundUpsPrefs(input: z.infer<typeof roundUpsSchema>) {
+export async function resetMonth() {
   const userId = await requireUserId()
-  const parsed = roundUpsSchema.parse(input)
+  return resetMonthCore(userId)
+}
+
+export async function setRoundUpsPrefsCore(
+  userId: string,
+  input: z.infer<typeof roundUpsPrefsSchema>,
+) {
+  const parsed = roundUpsPrefsSchema.parse(input)
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -61,19 +68,17 @@ export async function setRoundUpsPrefs(input: z.infer<typeof roundUpsSchema>) {
   revalidatePath("/")
 }
 
+export async function setRoundUpsPrefs(input: z.infer<typeof roundUpsPrefsSchema>) {
+  const userId = await requireUserId()
+  return setRoundUpsPrefsCore(userId, input)
+}
+
 export async function toggleRoundUps(enabled: boolean) {
   return setRoundUpsPrefs({ enabled: !!enabled })
 }
 
-const paydaySchema = z.object({
-  enabled: z.boolean(),
-  dayOfMonth: z.number().int().min(1).max(31).optional(),
-  autoPayday: z.boolean().optional(),
-})
-
-export async function setPaydayPrefs(input: z.infer<typeof paydaySchema>) {
-  const userId = await requireUserId()
-  const parsed = paydaySchema.parse(input)
+export async function setPaydayPrefsCore(userId: string, input: z.infer<typeof paydayPrefsSchema>) {
+  const parsed = paydayPrefsSchema.parse(input)
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -85,15 +90,12 @@ export async function setPaydayPrefs(input: z.infer<typeof paydaySchema>) {
   revalidatePath("/")
 }
 
-const pushPrefsSchema = z.object({
-  payday: z.boolean().optional(),
-  bucketHit: z.boolean().optional(),
-  wrap: z.boolean().optional(),
-  billsDue: z.boolean().optional(),
-})
-
-export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
+export async function setPaydayPrefs(input: z.infer<typeof paydayPrefsSchema>) {
   const userId = await requireUserId()
+  return setPaydayPrefsCore(userId, input)
+}
+
+export async function setPushPrefsCore(userId: string, input: z.infer<typeof pushPrefsSchema>) {
   const parsed = pushPrefsSchema.parse(input)
   await prisma.user.update({
     where: { id: userId },
@@ -105,6 +107,11 @@ export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
     },
   })
   revalidatePath("/")
+}
+
+export async function setPushPrefs(input: z.infer<typeof pushPrefsSchema>) {
+  const userId = await requireUserId()
+  return setPushPrefsCore(userId, input)
 }
 
 export async function sendTestPush() {
@@ -121,11 +128,8 @@ export async function sendTestPush() {
   return result
 }
 
-const pinSchema = z.object({ pin: z.string().regex(/^\d{4,8}$/) })
-
-export async function setAppLock(input: { pin: string }) {
-  const userId = await requireUserId()
-  const { pin } = pinSchema.parse(input)
+export async function setAppLockCore(userId: string, input: { pin: string }) {
+  const { pin } = appLockPinSchema.parse(input)
   const hash = await bcrypt.hash(pin, 10)
   await prisma.user.update({
     where: { id: userId },
@@ -134,9 +138,13 @@ export async function setAppLock(input: { pin: string }) {
   revalidatePath("/")
 }
 
-export async function disableAppLock(input: { pin: string }) {
+export async function setAppLock(input: { pin: string }) {
   const userId = await requireUserId()
-  const { pin } = pinSchema.parse(input)
+  return setAppLockCore(userId, input)
+}
+
+export async function disableAppLockCore(userId: string, input: { pin: string }) {
+  const { pin } = appLockPinSchema.parse(input)
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { appLockPinHash: true },
@@ -159,11 +167,13 @@ export async function disableAppLock(input: { pin: string }) {
   return { ok: true as const }
 }
 
-export async function verifyAppPin(input: { pin: string }): Promise<{
-  ok: boolean
-}> {
+export async function disableAppLock(input: { pin: string }) {
   const userId = await requireUserId()
-  const { pin } = pinSchema.parse(input)
+  return disableAppLockCore(userId, input)
+}
+
+export async function verifyAppPinCore(userId: string, input: { pin: string }) {
+  const { pin } = appLockPinSchema.parse(input)
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { appLockPinHash: true },
@@ -173,11 +183,16 @@ export async function verifyAppPin(input: { pin: string }): Promise<{
   return { ok }
 }
 
-const deleteSchema = z.object({ confirmEmail: z.string().email() })
-
-export async function deleteAccount(input: z.infer<typeof deleteSchema>) {
+export async function verifyAppPin(input: { pin: string }): Promise<{
+  ok: boolean
+}> {
   const userId = await requireUserId()
-  const { confirmEmail } = deleteSchema.parse(input)
+  return verifyAppPinCore(userId, input)
+}
+
+/** Deletes the user (cascades everything) once the typed email matches. */
+export async function deleteAccountCore(userId: string, input: z.infer<typeof deleteAccountSchema>) {
+  const { confirmEmail } = deleteAccountSchema.parse(input)
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { email: true },
@@ -186,6 +201,13 @@ export async function deleteAccount(input: z.infer<typeof deleteSchema>) {
     return { ok: false as const, error: "Email did not match." }
   }
   await prisma.user.delete({ where: { id: userId } })
-  await signOut({ redirectTo: "/sign-in" })
   return { ok: true as const }
+}
+
+export async function deleteAccount(input: z.infer<typeof deleteAccountSchema>) {
+  const userId = await requireUserId()
+  const result = await deleteAccountCore(userId, input)
+  if (!result.ok) return result
+  await signOut({ redirectTo: "/sign-in" })
+  return result
 }

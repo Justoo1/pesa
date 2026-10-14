@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import {
+  createIncomeSourceSchema,
+  deleteIncomeSourceSchema,
+  toggleIncomeSourceSchema,
+  updateIncomeSourceSchema,
+} from "@/lib/mobile/schemas"
 
 async function syncSalary(userId: string) {
   const active = await prisma.incomeSource.findMany({
@@ -14,14 +20,11 @@ async function syncSalary(userId: string) {
   await prisma.user.update({ where: { id: userId }, data: { salary } })
 }
 
-const createSchema = z.object({
-  name: z.string().min(1).max(40),
-  amount: z.number().int().nonnegative(),
-})
-
-export async function createIncomeSource(input: z.infer<typeof createSchema>) {
-  const userId = await requireUserId()
-  const { name, amount } = createSchema.parse(input)
+export async function createIncomeSourceCore(
+  userId: string,
+  input: z.infer<typeof createIncomeSourceSchema>,
+) {
+  const { name, amount } = createIncomeSourceSchema.parse(input)
   const count = await prisma.incomeSource.count({ where: { userId } })
   await prisma.incomeSource.create({
     data: { userId, name, amount, active: true, order: count },
@@ -30,15 +33,16 @@ export async function createIncomeSource(input: z.infer<typeof createSchema>) {
   revalidatePath("/")
 }
 
-const updateSchema = z.object({
-  incomeSourceId: z.string().min(1),
-  name: z.string().min(1).max(40),
-  amount: z.number().int().nonnegative(),
-})
-
-export async function updateIncomeSource(input: z.infer<typeof updateSchema>) {
+export async function createIncomeSource(input: z.infer<typeof createIncomeSourceSchema>) {
   const userId = await requireUserId()
-  const { incomeSourceId, name, amount } = updateSchema.parse(input)
+  return createIncomeSourceCore(userId, input)
+}
+
+export async function updateIncomeSourceCore(
+  userId: string,
+  input: z.infer<typeof updateIncomeSourceSchema>,
+) {
+  const { incomeSourceId, name, amount } = updateIncomeSourceSchema.parse(input)
   const result = await prisma.incomeSource.updateMany({
     where: { id: incomeSourceId, userId },
     data: { name, amount },
@@ -48,14 +52,16 @@ export async function updateIncomeSource(input: z.infer<typeof updateSchema>) {
   revalidatePath("/")
 }
 
-const toggleSchema = z.object({
-  incomeSourceId: z.string().min(1),
-  active: z.boolean(),
-})
-
-export async function toggleIncomeSource(input: z.infer<typeof toggleSchema>) {
+export async function updateIncomeSource(input: z.infer<typeof updateIncomeSourceSchema>) {
   const userId = await requireUserId()
-  const { incomeSourceId, active } = toggleSchema.parse(input)
+  return updateIncomeSourceCore(userId, input)
+}
+
+export async function toggleIncomeSourceCore(
+  userId: string,
+  input: z.infer<typeof toggleIncomeSourceSchema>,
+) {
+  const { incomeSourceId, active } = toggleIncomeSourceSchema.parse(input)
   const result = await prisma.incomeSource.updateMany({
     where: { id: incomeSourceId, userId },
     data: { active },
@@ -65,15 +71,25 @@ export async function toggleIncomeSource(input: z.infer<typeof toggleSchema>) {
   revalidatePath("/")
 }
 
-const deleteSchema = z.object({ incomeSourceId: z.string().min(1) })
-
-export async function deleteIncomeSource(input: z.infer<typeof deleteSchema>) {
+export async function toggleIncomeSource(input: z.infer<typeof toggleIncomeSourceSchema>) {
   const userId = await requireUserId()
-  const { incomeSourceId } = deleteSchema.parse(input)
+  return toggleIncomeSourceCore(userId, input)
+}
+
+export async function deleteIncomeSourceCore(
+  userId: string,
+  input: z.infer<typeof deleteIncomeSourceSchema>,
+) {
+  const { incomeSourceId } = deleteIncomeSourceSchema.parse(input)
   const result = await prisma.incomeSource.deleteMany({
     where: { id: incomeSourceId, userId },
   })
   if (result.count === 0) throw new Error("Income source not found")
   await syncSalary(userId)
   revalidatePath("/")
+}
+
+export async function deleteIncomeSource(input: z.infer<typeof deleteIncomeSourceSchema>) {
+  const userId = await requireUserId()
+  return deleteIncomeSourceCore(userId, input)
 }

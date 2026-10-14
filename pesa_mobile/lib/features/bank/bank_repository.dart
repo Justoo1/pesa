@@ -8,9 +8,8 @@ class BankRepository {
 
   final ApiClient _apiClient;
 
-  Future<void> createAccount({required String name}) => _run(
-    () => _apiClient.dio.post<void>('/api/mobile/bank/accounts', data: {'name': name}),
-  );
+  Future<void> createAccount({required String name}) =>
+      _run(() => _apiClient.dio.post<void>('/api/mobile/bank/accounts', data: {'name': name}));
 
   Future<void> transfer({
     required String fromAccountId,
@@ -42,6 +41,9 @@ class BankRepository {
       data: {'accountId': accountId, 'amount': amount, 'note': ?note},
     ),
   );
+
+  Future<void> archiveAccount(String accountId) =>
+      _run(() => _apiClient.dio.post<void>('/api/mobile/bank/accounts/$accountId/archive'));
 
   Future<void> _run(Future<Response<void>> Function() request) async {
     try {
