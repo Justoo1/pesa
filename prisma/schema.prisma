@@ -21,24 +21,24 @@ model User {
   passwordHash String?
 
   // pesa profile
-  displayName String?
-  salary      Int      @default(0)
-  currency    String   @default("GH₵")
-  monthLabel  String   @default("This month")
+  displayName     String?
+  salary          Int     @default(0)
+  currency        String  @default("GH₵")
+  monthLabel      String  @default("This month")
   // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
   // belongs to. When the calendar advances past it we roll the month over.
-  activeMonth String?
+  activeMonth     String?
   // Calendar month ("YYYY-MM") whose payday income was last credited to the
   // bank. Decoupled from `activeMonth` — pots reset on the 1st, but the bank
   // credit waits for `paydayDayOfMonth` (see lib/month.ts `ensurePaydayCredited`).
   lastPayCreditYm String?
 
   // pesa settings flags
-  roundUpsEnabled   Boolean @default(false)
-  roundUpStep       Int     @default(50)
-  paydayRemindersOn Boolean @default(false)
+  roundUpsEnabled   Boolean   @default(false)
+  roundUpStep       Int       @default(50)
+  paydayRemindersOn Boolean   @default(false)
   paydayDayOfMonth  Int?
-  appLockEnabled    Boolean @default(false)
+  appLockEnabled    Boolean   @default(false)
   appLockPinHash    String?
   onboardedAt       DateTime?
   tourCompletedAt   DateTime?
@@ -52,18 +52,19 @@ model User {
   // auto-disburse on payday using last month's template
   autoPaydayOn Boolean @default(false)
 
-  accounts          Account[]
-  sessions          Session[]
-  buckets           Bucket[]
-  txns              Transaction[]
-  pushSubscriptions PushSubscription[]
-  incomeSources     IncomeSource[]
-  bankTxns          BankTransaction[]
-  bankAccounts      BankAccount[]
-  projects          Project[]
-  milestones        Milestone[]
-  milestoneTxns     MilestoneTransaction[]
-  mobileSessions    MobileSession[]
+  accounts           Account[]
+  sessions           Session[]
+  buckets            Bucket[]
+  txns               Transaction[]
+  pushSubscriptions  PushSubscription[]
+  incomeSources      IncomeSource[]
+  bankTxns           BankTransaction[]
+  bankAccounts       BankAccount[]
+  projects           Project[]
+  milestones         Milestone[]
+  milestoneTxns      MilestoneTransaction[]
+  mobileSessions     MobileSession[]
+  mobileDeviceTokens MobileDeviceToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -141,22 +142,22 @@ model MobileSession {
 // ---------- Pesa domain ----------
 
 model Bucket {
-  id             String    @id @default(cuid())
-  userId         String
-  name           String
-  target         Int
-  allocated      Int       @default(0)
-  spent          Int       @default(0)
-  color          String
-  icon           String
-  priority       Int
-  kind           String
-  dueDayOfMonth  Int?
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  target        Int
+  allocated     Int       @default(0)
+  spent         Int       @default(0)
+  color         String
+  icon          String
+  priority      Int
+  kind          String
+  dueDayOfMonth Int?
   // If true, unspent balance (allocated - spent) rolls into next month's
   // starting allocated instead of resetting to zero at rollover.
-  carryOver      Boolean   @default(false)
-  archivedAt     DateTime?
-  createdAt      DateTime  @default(now())
+  carryOver     Boolean   @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   txns       Transaction[]
@@ -218,9 +219,9 @@ model BankAccount {
 }
 
 model BankTransaction {
-  id        String @id @default(cuid())
-  userId    String
-  accountId String
+  id         String   @id @default(cuid())
+  userId     String
+  accountId  String
   // positive = credit (income/manual add), negative = debit (pot disburse/spend)
   amount     Int
   kind       String
@@ -246,6 +247,23 @@ model PushSubscription {
   auth      String
   userAgent String?
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// FCM registration tokens from the Flutter app (Phase 7 stub). Stored only —
+/// nothing reads this table yet; lib/push.ts still sends Web Push only. A
+/// token identifies a device, so re-registering it under another user (a
+/// different account signing in on the same phone) moves it to that user.
+model MobileDeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  fcmToken  String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

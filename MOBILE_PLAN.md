@@ -8,11 +8,11 @@ Do not build multiple phases in one sitting. Do not skip ahead. Do not re-derive
 
 ## STATUS
 
-- Current phase: 7
-- Next step to run: 7.1
-- Last completed step: 6.2 (and 7.2)
+- Current phase: 8
+- Next step to run: 8.1
+- Last completed step: 7.1 (Phase 7 done)
 - Blocked: no
-- Last updated: 2026-10-14 by implementation session (3.5.3–6.2 + 7.2 in one session at user request)
+- Last updated: 2026-10-14 by implementation session (Phase 7.1)
 
 ## SESSION LOG
 
@@ -58,6 +58,9 @@ Do not build multiple phases in one sitting. Do not skip ahead. Do not re-derive
   - Verification: `flutter analyze` clean; `flutter test` passes; integration tests `app_test`, `home_dashboard_test`, `pot_and_bank_actions_test`, new `insights_months_test`, new `projects_settings_test` all pass on the emulator with zero framework exceptions in the logs. `email_code_test` was **not** run: it reads `/tmp/pesa-dev.log` from the device's filesystem, which only worked on Linux desktop — needs a different code-retrieval approach for Android.
   - Gotchas for the next agent: (1) don't edit Dart files while `flutter test integration_test/...` is compiling — the Gradle build picks up half-edited files; (2) `PesaCard` is now Material-backed — a `ListTile` inside a colored `DecoratedBox` trips a framework assertion that fails integration tests; (3) Turbopack's dev server sometimes misses newly created route files or new exports (404 / "is not a function") — re-save/recreate the file or restart `npm run dev`; (4) `dart format` must use `--page-width 100` or it reflows the whole codebase; (5) Wrap tab is still a placeholder (no phase covers it).
   - Next session: start at 7.1.
+
+- 2026-10-14: Phase 7.1 done (7.2's disabled settings row shipped with 6.2). Added `MobileDeviceToken { id, userId, fcmToken @unique, platform, createdAt, updatedAt }` (cascade on user delete) via migration `20261014104138_add_mobile_device_token` — generated with `migrate dev --create-only`, reviewed (purely additive), applied with `migrate deploy` to avoid any drift-reset prompt. `POST /api/mobile/push/register-token` (`{ fcmToken, platform: "android"|"ios" }`, schema `registerDeviceTokenSchema`) upserts by token, so re-registering a device moves it to the currently signed-in user. Curl-verified: create → 200, same token again with a new platform → still one row (updated), `platform:"web"` → 400 VALIDATION_ERROR, no auth → 401; test row deleted afterwards. Confirmed inert: grep shows the route is the only code touching `mobileDeviceToken` — no cron or `lib/push.ts` path reads it. No Flutter changes (no FCM dependency yet).
+  - Next session: start at 8.1 (error/empty/loading state audit). Note 8.6 needs a decision from the user on the final Android applicationId / iOS bundle id (currently `com.example.*`).
 
 ---
 
@@ -307,7 +310,7 @@ Re-read before starting: `app/actions/settings.ts`, `app/actions/income-sources.
 
 Re-read before starting: `lib/push.ts`, `prisma/schema.prisma` `PushSubscription` model.
 
-- [ ] **7.1 — Schema + accept-only endpoint for future FCM tokens**
+- [x] **7.1 — Schema + accept-only endpoint for future FCM tokens**
   Files touched: `prisma/schema.prisma` (new additive `MobileDeviceToken { id, userId, fcmToken, platform, createdAt }`, migration), `app/api/mobile/push/register-token/route.ts` (accepts/upserts a token, does nothing else).
   Done when: migration applies; curl posting a fake token succeeds and the row appears in the DB; confirm (session log) no cron/`lib/push.ts` path reads this table yet — intentionally inert.
 

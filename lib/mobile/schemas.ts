@@ -262,3 +262,10 @@ export const toggleIncomeSourceSchema = z.object({
 })
 
 export const deleteIncomeSourceSchema = z.object({ incomeSourceId: z.string().min(1) })
+
+// --- push (Phase 7 stub) ---
+
+export const registerDeviceTokenSchema = z.object({
+  fcmToken: z.string().min(1).max(4096),
+  platform: z.enum(["android", "ios"]),
+})
