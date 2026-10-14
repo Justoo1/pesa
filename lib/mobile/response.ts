@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { ZodError } from "zod"
+import { RateLimitError } from "@/lib/rate-limit"
 
 export type MobileErrorCode =
   | "VALIDATION_ERROR"
@@ -7,6 +8,8 @@ export type MobileErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "INTERNAL"
+  | "RATE_LIMITED"
+  | "LOCKED"
 
 export class HttpError extends Error {
   status: number
@@ -47,6 +50,11 @@ export function withMobileRoute<Params extends Record<string, string> = Record<s
       }
       if (error instanceof HttpError) {
         return mobileError(error.status, error.code, error.message)
+      }
+      if (error instanceof RateLimitError) {
+        const res = mobileError(429, "RATE_LIMITED", error.message)
+        res.headers.set("Retry-After", String(error.retryAfterSeconds))
+        return res
       }
       // A malformed body makes `request.json()` throw a SyntaxError.
       if (error instanceof SyntaxError) {

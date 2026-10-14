@@ -191,7 +191,10 @@ class _DisburseFlowState extends ConsumerState<_DisburseFlow> {
                     buckets: data?.buckets ?? const [],
                     remaining:
                         (data?.profile.salary ?? 0) -
-                        (data?.buckets ?? const <Bucket>[]).fold<int>(0, (s, b) => s + b.allocated),
+                        (data?.buckets ?? const <Bucket>[]).fold<int>(
+                          0,
+                          (s, b) => s + b.sentThisMonth,
+                        ),
                     currency: currency,
                     onPick: _pick,
                   ),

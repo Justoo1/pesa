@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { fmtMoney } from "../format"
+import { fmtMoney, sentThisMonth } from "../format"
 import { Icon } from "../icons"
 import { Ring } from "../ui"
 import { MilestoneBanner } from "../milestone-banner"
@@ -68,11 +68,11 @@ export function InsightsScreen({
   // Only show pots that have actually received money this month, sorted by
   // how much landed in them (largest first).
   const flows = state.buckets
-    .filter((b) => b.allocated > 0)
+    .filter((b) => sentThisMonth(b) > 0)
     .slice()
-    .sort((a, b) => b.allocated - a.allocated)
+    .sort((a, b) => sentThisMonth(b) - sentThisMonth(a))
     .slice(0, 6)
-  const flowMax = Math.max(1, ...flows.map((f) => f.allocated))
+  const flowMax = Math.max(1, ...flows.map((f) => sentThisMonth(f)))
 
   const flowBarClass = (c: BucketColor) =>
     ({ clay: "clay", green: "", gold: "gold", rose: "rose", sage: "sage" }[c])
@@ -329,7 +329,7 @@ export function InsightsScreen({
             </div>
           ) : (
             flows.map((b) => {
-              const w = Math.max(8, (b.allocated / flowMax) * 100)
+              const w = Math.max(8, (sentThisMonth(b) / flowMax) * 100)
               return (
                 <div key={b.id} className="flow-row">
                   <div
@@ -361,7 +361,7 @@ export function InsightsScreen({
                     className="num"
                     style={{ fontSize: 12, textAlign: "right", color: "var(--ink-2)" }}
                   >
-                    {fmtMoney(b.allocated, currency)}
+                    {fmtMoney(sentThisMonth(b), currency)}
                   </div>
                 </div>
               )

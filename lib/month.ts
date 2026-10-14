@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db"
 import { getPrimaryAccountId } from "@/lib/bank"
+import { effectivePayday } from "@/lib/dates"
 
 function ymOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
+
 
 /**
  * How much has been disbursed into each pot, per calendar month. Returns a
@@ -93,27 +95,28 @@ export async function ensureCurrentMonth(userId: string): Promise<void> {
 
   // New calendar month: start fresh. Zero the live tally and relabel; keep the
   // ledger so the prior month still shows up under history/insights.
-  const carryOverBuckets = await prisma.bucket.findMany({
-    where: { userId, carryOver: true },
-    select: { id: true, allocated: true, spent: true },
-  })
-
-  await prisma.$transaction([
-    prisma.bucket.updateMany({
-      where: { userId, carryOver: false },
-      data: { allocated: 0, spent: 0 },
-    }),
-    ...carryOverBuckets.map((b) =>
-      prisma.bucket.update({
-        where: { id: b.id },
-        data: { allocated: Math.max(0, b.allocated - b.spent), spent: 0 },
-      }),
-    ),
-    prisma.user.update({
-      where: { id: userId },
+  // Claim the rollover first (conditional on the stamp we read) so two
+  // concurrent page loads can't both reset — the loser would otherwise wipe
+  // a disbursement made between the two reads. Carry-over pots keep their
+  // unspent balance, recorded in `carriedIn` so it isn't counted as money
+  // disbursed this month.
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.user.updateMany({
+      where: { id: userId, activeMonth: user.activeMonth },
       data: { activeMonth: currentYm, monthLabel: longLabel(now) },
-    }),
-  ])
+    })
+    if (claimed.count !== 1) return
+    await tx.bucket.updateMany({
+      where: { userId, carryOver: false },
+      data: { allocated: 0, spent: 0, carriedIn: 0 },
+    })
+    await tx.$executeRaw`
+      UPDATE "Bucket"
+      SET "allocated" = GREATEST(0, "allocated" - "spent"),
+          "carriedIn" = GREATEST(0, "allocated" - "spent"),
+          "spent" = 0
+      WHERE "userId" = ${userId} AND "carryOver" = true`
+  })
 }
 
 /**
@@ -146,7 +149,8 @@ export async function ensurePaydayCredited(userId: string): Promise<void> {
   const cycles: string[] = []
   for (let i = 0; i < 24 && ymOf(cursor) <= currentYm; i++) {
     const cursorYm = ymOf(cursor)
-    if (cursorYm === currentYm && now.getDate() < payDay) break // this month's payday hasn't arrived yet
+    // This month's payday hasn't arrived yet (29–31 clamp to the month's end).
+    if (cursorYm === currentYm && now.getDate() < effectivePayday(payDay, now.getFullYear(), now.getMonth())) break
     cycles.push(cursorYm)
     cursor = addMonths(cursor, 1)
   }
@@ -159,19 +163,22 @@ export async function ensurePaydayCredited(userId: string): Promise<void> {
   })
   const incomePerCycle = activeIncome.reduce((s, a) => s + a.amount, 0)
 
-  if (incomePerCycle <= 0) {
-    await prisma.user.update({ where: { id: userId }, data: { lastPayCreditYm: lastYm } })
-    return
-  }
-
+  // Claim the cycles atomically (conditional on the stamp we read) before
+  // crediting, inside one transaction: two concurrent loads on payday (web +
+  // mobile) can then never credit the same month twice.
   const totalIncome = incomePerCycle * cycles.length
-  const primaryAccountId = await getPrimaryAccountId(userId)
-  await prisma.$transaction([
-    prisma.bankAccount.update({
+  const primaryAccountId = totalIncome > 0 ? await getPrimaryAccountId(userId) : null
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.user.updateMany({
+      where: { id: userId, lastPayCreditYm: user.lastPayCreditYm },
+      data: { lastPayCreditYm: lastYm },
+    })
+    if (claimed.count !== 1 || !primaryAccountId) return
+    await tx.bankAccount.update({
       where: { id: primaryAccountId },
       data: { balance: { increment: totalIncome } },
-    }),
-    prisma.bankTransaction.create({
+    })
+    await tx.bankTransaction.create({
       data: {
         userId,
         accountId: primaryAccountId,
@@ -179,7 +186,6 @@ export async function ensurePaydayCredited(userId: string): Promise<void> {
         kind: "income",
         note: cycles.length > 1 ? `Payday credit ×${cycles.length}` : "Payday credit",
       },
-    }),
-    prisma.user.update({ where: { id: userId }, data: { lastPayCreditYm: lastYm } }),
-  ])
+    })
+  })
 }

@@ -1,9 +1,17 @@
 import { verifyAppPinCore } from "@/app/actions/settings"
-import { requireMobileUserId } from "@/lib/mobile/auth"
+import { prisma } from "@/lib/db"
+import { requireMobileAuth } from "@/lib/mobile/auth"
 import { mobileOk, withMobileRoute } from "@/lib/mobile/response"
 
-/** `{ pin }` → `{ ok: boolean }`; always checked server-side. */
+/**
+ * `{ pin }` → `{ ok, error?, signedOut? }`. A correct PIN unlocks this
+ * session server-side; wrong ones count toward the lockout (lib/app-lock.ts).
+ */
 export const POST = withMobileRoute(async (request) => {
-  const userId = await requireMobileUserId(request)
-  return mobileOk(await verifyAppPinCore(userId, await request.json()))
+  const { userId, sessionId } = await requireMobileAuth(request, { allowLocked: true })
+  const result = await verifyAppPinCore(userId, await request.json())
+  if (result.ok) {
+    await prisma.mobileSession.update({ where: { id: sessionId }, data: { unlockedAt: new Date() } })
+  }
+  return mobileOk(result)
 })

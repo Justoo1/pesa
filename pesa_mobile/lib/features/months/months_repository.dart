@@ -79,6 +79,7 @@ class MonthDetail {
     required this.lived,
     required this.total,
     required this.transactions,
+    this.isPastMonth = false,
   });
 
   factory MonthDetail.fromJson(Map<String, dynamic> json) => MonthDetail(
@@ -88,6 +89,7 @@ class MonthDetail {
     gave: json['gave'] as int,
     lived: json['lived'] as int,
     total: json['total'] as int,
+    isPastMonth: json['isPastMonth'] as bool? ?? false,
     transactions: (json['transactions'] as List)
         .map((e) => MonthTransaction.fromJson(e as Map<String, dynamic>))
         .toList(),
@@ -100,6 +102,7 @@ class MonthDetail {
   final int lived;
   final int total;
   final List<MonthTransaction> transactions;
+  final bool isPastMonth;
 }
 
 class MonthsRepository {
@@ -110,6 +113,39 @@ class MonthsRepository {
   Future<List<MonthSummary>> list() async {
     final data = await _get('/api/mobile/months') as List;
     return data.map((e) => MonthSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// `{ "YYYY-MM": { bucketId: filled } }` for greying out already-full pots.
+  Future<Map<String, Map<String, int>>> filledByMonth() async {
+    final data = await _get('/api/mobile/months/filled') as Map<String, dynamic>;
+    return data.map(
+      (ym, pots) =>
+          MapEntry(ym, (pots as Map<String, dynamic>).map((id, v) => MapEntry(id, v as int))),
+    );
+  }
+
+  /// Backdated batch disbursement into one past month (history only).
+  Future<void> addPast({
+    required Map<String, int> amounts,
+    required DateTime occurredAt,
+    required String method,
+    String? note,
+  }) async {
+    try {
+      await _apiClient.dio.post<void>(
+        '/api/mobile/transactions/disburse-many',
+        data: {
+          'entries': [
+            for (final e in amounts.entries) {'bucketId': e.key, 'amount': e.value},
+          ],
+          'occurredAt': occurredAt.toUtc().toIso8601String(),
+          'method': method,
+          'note': ?note,
+        },
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
   }
 
   Future<MonthDetail> detail(String ym) async =>
@@ -131,6 +167,10 @@ final monthsRepositoryProvider = Provider<MonthsRepository>((ref) {
 
 final monthsListProvider = FutureProvider.autoDispose<List<MonthSummary>>(
   (ref) => ref.watch(monthsRepositoryProvider).list(),
+);
+
+final filledByMonthProvider = FutureProvider.autoDispose<Map<String, Map<String, int>>>(
+  (ref) => ref.watch(monthsRepositoryProvider).filledByMonth(),
 );
 
 final monthDetailProvider = FutureProvider.autoDispose.family<MonthDetail, String>(

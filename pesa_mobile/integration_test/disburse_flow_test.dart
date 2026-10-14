@@ -6,6 +6,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:pesa_mobile/app.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 
+import 'helpers/tour.dart';
+
 /// The web-parity disburse flow against the live dev server: pick → keypad
 /// (pre-filled with what the pot needs) → confirm with a method → "Landed
 /// safely", and the rule that a pot can't be filled past its target.
@@ -28,6 +30,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
     await tester.pumpAndSettle(const Duration(seconds: 15)); // bootstrap fetch
+    await skipTourIfShown(tester);
 
     // --- Pick step from the hero CTA ---
     await tester.tap(find.text('Send to a pot'));

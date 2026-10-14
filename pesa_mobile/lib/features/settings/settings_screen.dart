@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
+import '../../core/push/push_service.dart';
 import '../../core/models/user_profile.dart';
 import '../../core/theme/pesa_colors.dart';
 import '../../core/widgets/form_sheet.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/pesa_card.dart';
 import '../../core/widgets/screen_header.dart';
 import '../auth/auth_provider.dart';
 import '../home/bootstrap_provider.dart';
+import '../help/help_and_tour.dart';
 import 'app_lock.dart';
 import 'settings_repository.dart';
 
@@ -66,6 +68,11 @@ class _SettingsBody extends ConsumerWidget {
             _Row(icon: LucideIcons.heart, label: 'Name', value: p.displayName, onTap: editProfile),
             if (p.email != null) _Row(icon: LucideIcons.send, label: 'Email', value: p.email),
             _Row(
+              icon: LucideIcons.piggyBank,
+              label: 'Pots & targets',
+              onTap: () => context.push('/pots'),
+            ),
+            _Row(
               icon: LucideIcons.wallet,
               label: 'Income sources',
               value: formatMoney(p.salary, p.currency),
@@ -106,11 +113,11 @@ class _SettingsBody extends ConsumerWidget {
               value: p.appLockEnabled ? 'On' : 'Off',
               onTap: () => showAppLockSheet(context, enabled: p.appLockEnabled),
             ),
-            const _Row(
+            _Row(
               icon: LucideIcons.bell,
               label: 'Push notifications',
-              value: 'Coming soon',
-              enabled: false,
+              value: PushService.available ? null : 'Not set up',
+              onTap: () => _pushSheet(context, ref, p),
             ),
           ],
         ),
@@ -120,6 +127,20 @@ class _SettingsBody extends ConsumerWidget {
               icon: LucideIcons.history,
               label: 'View past months',
               onTap: () => context.push('/months'),
+            ),
+            _Row(
+              icon: LucideIcons.circleHelp,
+              label: 'Help & tutorials',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (helpContext) => HelpScreen(
+                    onReplayTour: () {
+                      Navigator.of(helpContext).pop();
+                      ref.read(tourProvider.notifier).start();
+                    },
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -192,6 +213,74 @@ class _SettingsBody extends ConsumerWidget {
         }
         await ref.read(settingsRepositoryProvider).deleteAccount(v['email']!);
         await ref.read(authControllerProvider.notifier).logout();
+      },
+    );
+  }
+
+  void _pushSheet(BuildContext context, WidgetRef ref, UserProfile p) {
+    if (!PushService.available) {
+      showModalBottomSheet(
+        context: context,
+        builder: (_) => const Padding(
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Text(
+            "Phone notifications aren't set up for this build yet. They switch on once the "
+            'app is built with its Firebase configuration.',
+          ),
+        ),
+      );
+      return;
+    }
+    var payday = p.pushPaydayOn;
+    var bucketHit = p.pushBucketHitOn;
+    var wrap = p.pushWrapOn;
+    var billsDue = p.pushBillsDueOn;
+    _settingsSheet(
+      context,
+      title: 'Push notifications',
+      builder: (setState) => [
+        const Text(
+          'Turning these on asks for notification permission and registers this phone.',
+          style: TextStyle(color: PesaColors.ink3),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text("It's payday"),
+          value: payday,
+          onChanged: (v) => setState(() => payday = v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('A pot is full'),
+          value: bucketHit,
+          onChanged: (v) => setState(() => bucketHit = v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Your monthly wrap'),
+          value: wrap,
+          onChanged: (v) => setState(() => wrap = v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Bills coming due'),
+          value: billsDue,
+          onChanged: (v) => setState(() => billsDue = v),
+        ),
+      ],
+      onSave: () async {
+        if (payday || bucketHit || wrap || billsDue) {
+          final granted = await PushService.enable(ref.read(apiClientProvider));
+          if (!granted) {
+            throw const FormSheetError(
+              'Notifications are blocked — allow them in system settings.',
+            );
+          }
+        }
+        await ref
+            .read(settingsRepositoryProvider)
+            .setPushPrefs(payday: payday, bucketHit: bucketHit, wrap: wrap, billsDue: billsDue);
+        ref.invalidate(bootstrapProvider);
       },
     );
   }
@@ -358,7 +447,6 @@ class _Row extends StatelessWidget {
     this.value,
     this.onTap,
     this.danger = false,
-    this.enabled = true,
   });
 
   final IconData icon;
@@ -366,17 +454,15 @@ class _Row extends StatelessWidget {
   final String? value;
   final VoidCallback? onTap;
   final bool danger;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final color = danger ? PesaColors.clayDeep : PesaColors.ink;
     return ListTile(
-      enabled: enabled,
-      leading: Icon(icon, size: 18, color: enabled ? color : PesaColors.ink3),
+      leading: Icon(icon, size: 18, color: color),
       title: Text(
         label,
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? color : null),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: color),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

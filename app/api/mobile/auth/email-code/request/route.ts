@@ -3,12 +3,25 @@ import { sendEmail } from "@/lib/email"
 import { requestLoginCodeSchema } from "@/lib/mobile/schemas"
 import { generateLoginCode, hashLoginCode } from "@/lib/mobile/otp"
 import { HttpError, mobileOk, withMobileRoute } from "@/lib/mobile/response"
+import { enforceRateLimits, limits } from "@/lib/rate-limit"
+import { requestIp } from "@/lib/request-ip"
+import { rememberDevCode } from "@/lib/mobile/dev-codes"
 
 const CODE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
 export const POST = withMobileRoute(async (request) => {
   const body = requestLoginCodeSchema.parse(await request.json())
   const email = body.email.toLowerCase()
+  // Each request mints a fresh 5-guess budget and sends an email, so cap
+  // them per inbox and per caller (anti brute force and anti email-bombing).
+  await enforceRateLimits(
+    [
+      limits.emailSendByEmail(email),
+      limits.emailSendByEmailDaily(email),
+      limits.emailSendByIp(requestIp(request)),
+    ],
+    "Too many codes requested. Please wait a few minutes and try again.",
+  )
 
   // Invalidate any codes still outstanding for this email before issuing a
   // new one, so only the most recently requested code can ever be verified.
@@ -28,6 +41,7 @@ export const POST = withMobileRoute(async (request) => {
 
   if (process.env.NODE_ENV !== "production") {
     console.log(`[dev] mobile email-code for ${email}: ${code}`)
+    rememberDevCode(email, code)
   }
 
   try {

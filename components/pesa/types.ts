@@ -63,6 +63,8 @@ export type Bucket = {
   kind: BucketKind
   dueDayOfMonth: number | null
   carryOver: boolean
+  // Part of `allocated` carried in from last month (carry-over pots only).
+  carriedIn?: number
   projection?: PotProjection | null
 }
 

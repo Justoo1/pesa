@@ -5,6 +5,8 @@ import { loadHomeData } from "@/lib/mobile/bootstrap"
 import { PesaApp } from "@/components/pesa/app"
 import { Clock } from "@/components/pesa/clock"
 import { LockButton } from "@/components/pesa/lock-button"
+import { LockScreen } from "@/components/pesa/lock-gate"
+import { isWebLocked } from "@/lib/app-lock"
 import { OnboardingShell } from "@/components/pesa/onboarding/walkthrough"
 import type { AppState } from "@/components/pesa/types"
 
@@ -16,6 +18,30 @@ export default async function Page() {
     redirect("/sign-in")
   }
   const userId = session.user.id
+
+  // App lock is enforced here, on the server: while locked, render only the
+  // PIN pad — none of the account's data is loaded or sent to the browser.
+  if (await isWebLocked(userId)) {
+    return (
+      <div className="stage">
+        <div className="scene">
+          <div className="device">
+            <div className="device-screen">
+              <div className="statusbar">
+                <span className="statusbar-clock">
+                  <Clock />
+                </span>
+                <span className="statusbar-slogan">Every cedi, a place to land.</span>
+              </div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                <LockScreen />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Roll the live tally over to the current calendar month before reading it,
   // so a new month starts with a full "left to disburse" and an updated label.

@@ -7,6 +7,8 @@ import 'package:pesa_mobile/app.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
+import 'helpers/tour.dart';
+
 /// Phases 5.2 + 6.2 against the live dev server: build a two-milestone
 /// project, confirm the server's sequential-unlock statuses drive the road
 /// (locked → disabled fund; funding the first unlocks the second), then add
@@ -39,6 +41,7 @@ void main() {
       'Password': 'password123',
     }, 'Create account');
     await tester.pumpAndSettle(const Duration(seconds: 15)); // bootstrap fetch
+    await skipTourIfShown(tester);
 
     // --- Projects: create a project with two milestones ---
     await tester.tap(navTab('PROJECTS'));

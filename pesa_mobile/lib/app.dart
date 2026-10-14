@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/push/push_service.dart';
 import 'core/router.dart';
 import 'core/theme/pesa_theme.dart';
 import 'features/auth/auth_provider.dart';
@@ -25,6 +26,7 @@ class PesaApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Pesa',
       theme: _theme,
+      scaffoldMessengerKey: PushService.messengerKey,
       routerConfig: ref.watch(routerProvider),
     );
   }

@@ -7,8 +7,10 @@ import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
 import { signOut } from "@/auth"
+import { checkAppPin, clearWebUnlocked, setWebUnlocked } from "@/lib/app-lock"
 import {
   appLockPinSchema,
+  setAppLockSchema,
   deleteAccountSchema,
   paydayPrefsSchema,
   pushPrefsSchema,
@@ -128,19 +130,34 @@ export async function sendTestPush() {
   return result
 }
 
-export async function setAppLockCore(userId: string, input: { pin: string }) {
-  const { pin } = appLockPinSchema.parse(input)
+/**
+ * Sets (or changes) the app-lock PIN. Changing an existing PIN needs the
+ * current one — otherwise anyone at an unlocked device could swap it.
+ */
+export async function setAppLockCore(userId: string, input: z.infer<typeof setAppLockSchema>) {
+  const { pin, currentPin } = setAppLockSchema.parse(input)
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { appLockEnabled: true, appLockPinHash: true },
+  })
+  if (user?.appLockEnabled && user.appLockPinHash) {
+    if (!currentPin) throw new Error("Enter your current PIN to change it.")
+    const check = await checkAppPin(userId, currentPin)
+    if (!check.ok) throw new Error(check.error)
+  }
   const hash = await bcrypt.hash(pin, 10)
   await prisma.user.update({
     where: { id: userId },
-    data: { appLockEnabled: true, appLockPinHash: hash },
+    data: { appLockEnabled: true, appLockPinHash: hash, pinFailedAttempts: 0, pinLockedUntil: null },
   })
   revalidatePath("/")
 }
 
-export async function setAppLock(input: { pin: string }) {
+export async function setAppLock(input: z.infer<typeof setAppLockSchema>) {
   const userId = await requireUserId()
-  return setAppLockCore(userId, input)
+  await setAppLockCore(userId, input)
+  // Whoever just chose the PIN stays unlocked on this browser.
+  await setWebUnlocked(userId)
 }
 
 export async function disableAppLockCore(userId: string, input: { pin: string }) {
@@ -149,19 +166,14 @@ export async function disableAppLockCore(userId: string, input: { pin: string })
     where: { id: userId },
     select: { appLockPinHash: true },
   })
-  if (!user?.appLockPinHash) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { appLockEnabled: false, appLockPinHash: null },
-    })
-    revalidatePath("/")
-    return { ok: true as const }
+  if (user?.appLockPinHash) {
+    // Same lockout as unlocking, so this can't be used to guess the PIN.
+    const check = await checkAppPin(userId, pin)
+    if (!check.ok) return { ok: false as const, error: check.error }
   }
-  const ok = await bcrypt.compare(pin, user.appLockPinHash)
-  if (!ok) return { ok: false as const, error: "Wrong PIN." }
   await prisma.user.update({
     where: { id: userId },
-    data: { appLockEnabled: false, appLockPinHash: null },
+    data: { appLockEnabled: false, appLockPinHash: null, pinFailedAttempts: 0, pinLockedUntil: null },
   })
   revalidatePath("/")
   return { ok: true as const }
@@ -174,20 +186,22 @@ export async function disableAppLock(input: { pin: string }) {
 
 export async function verifyAppPinCore(userId: string, input: { pin: string }) {
   const { pin } = appLockPinSchema.parse(input)
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { appLockPinHash: true },
-  })
-  if (!user?.appLockPinHash) return { ok: false }
-  const ok = await bcrypt.compare(pin, user.appLockPinHash)
-  return { ok }
+  return checkAppPin(userId, pin)
 }
 
-export async function verifyAppPin(input: { pin: string }): Promise<{
-  ok: boolean
-}> {
-  const userId = await requireUserId()
-  return verifyAppPinCore(userId, input)
+/** Unlocks this browser (signed cookie) when the PIN is right. */
+export async function verifyAppPin(input: { pin: string }) {
+  const userId = await requireUserId({ allowLocked: true })
+  const result = await verifyAppPinCore(userId, input)
+  if (result.ok) await setWebUnlocked(userId)
+  return result
+}
+
+/** "Lock now": forget this browser's unlock. */
+export async function lockApp() {
+  await requireUserId({ allowLocked: true })
+  await clearWebUnlocked()
+  revalidatePath("/")
 }
 
 /** Deletes the user (cascades everything) once the typed email matches. */

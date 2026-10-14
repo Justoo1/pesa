@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server"
+import { rejectUnauthorizedCron } from "@/lib/cron"
+import { appUrl, escapeHtml } from "@/lib/account-security"
+import { paydayDaysMatching } from "@/lib/dates"
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { sendEmail } from "@/lib/email"
@@ -6,32 +9,32 @@ import { sendPushToUser } from "@/lib/push"
 import { applyPaydayTemplateForUser, loadPaydayTemplate } from "@/lib/payday"
 
 async function sendReminderEmail(email: string, displayName: string | null) {
-  const base = process.env.AUTH_URL ?? "http://localhost:3000"
-  const link = `${base}/sign-in`
+  const link = `${appUrl()}/sign-in`
   const greeting = displayName ? `Hi ${displayName},` : "Hi,"
   await sendEmail({
     to: email,
     subject: "It's payday — disburse your salary in Pesa",
-    html: `<p>${greeting}</p>
+    // displayName is user-controlled: escape it before it goes into HTML.
+    html: `<p>${escapeHtml(greeting)}</p>
 <p>It's the day you asked to be nudged. Pop into Pesa and move your salary into pots before the cravings hit.</p>
-<p><a href="${link}">Open Pesa</a></p>`,
+<p><a href="${escapeHtml(link)}">Open Pesa</a></p>`,
     text: `${greeting}\n\nIt's payday — open Pesa to disburse: ${link}`,
   })
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  const auth = request.headers.get("authorization")
-  if (secret && auth !== `Bearer ${secret}`) {
-    return new NextResponse("Forbidden", { status: 403 })
-  }
+  const rejected = rejectUnauthorizedCron(request)
+  if (rejected) return rejected
 
-  const dayOfMonth = new Date().getDate()
+  const now = new Date()
+  const dayOfMonth = now.getDate()
+  const paydayIn = { in: paydayDaysMatching(now) }
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
 
   const emailUsers = await prisma.user.findMany({
     where: {
       paydayRemindersOn: true,
-      paydayDayOfMonth: dayOfMonth,
+      paydayDayOfMonth: paydayIn,
       email: { not: null },
     },
     select: { email: true, displayName: true },
@@ -49,7 +52,7 @@ export async function GET(request: Request) {
   const pushUsers = await prisma.user.findMany({
     where: {
       pushPaydayOn: true,
-      paydayDayOfMonth: dayOfMonth,
+      paydayDayOfMonth: paydayIn,
     },
     select: { id: true },
   })
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
   const autoUsers = await prisma.user.findMany({
     where: {
       autoPaydayOn: true,
-      paydayDayOfMonth: dayOfMonth,
+      paydayDayOfMonth: paydayIn,
     },
     select: { id: true },
   })
@@ -82,6 +85,17 @@ export async function GET(request: Request) {
   let autoApplied = 0
   let autoUsersNotified = 0
   for (const u of autoUsers) {
+    // Claim this month for the user before moving money, so a Vercel retry
+    // or a second call the same day can never auto-disburse twice.
+    const claimed = await prisma.user.updateMany({
+      // (NULL never compares unequal in SQL, so match it explicitly.)
+      where: {
+        id: u.id,
+        OR: [{ lastAutoPaydayYm: null }, { lastAutoPaydayYm: { not: currentYm } }],
+      },
+      data: { lastAutoPaydayYm: currentYm },
+    })
+    if (claimed.count !== 1) continue
     try {
       const template = await loadPaydayTemplate(u.id)
       if (template.length === 0) continue

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { rejectUnauthorizedCron } from "@/lib/cron"
+import { daysInMonth } from "@/lib/dates"
 import { prisma } from "@/lib/db"
 import { sendPushToUser } from "@/lib/push"
 
@@ -8,15 +10,12 @@ import { sendPushToUser } from "@/lib/push"
  * target` for the current calendar month — if so, push the user (provided
  * they have pushBillsDueOn enabled).
  *
- * Same auth pattern as the other cron handlers: Vercel cron sends Bearer
- * CRON_SECRET if the env var is set.
+ * Same auth as the other cron handlers (lib/cron.ts): Vercel cron sends
+ * `Bearer $CRON_SECRET`, and the route refuses to run without one.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  const auth = request.headers.get("authorization")
-  if (secret && auth !== `Bearer ${secret}`) {
-    return new NextResponse("Forbidden", { status: 403 })
-  }
+  const rejected = rejectUnauthorizedCron(request)
+  if (rejected) return rejected
 
   const now = new Date()
   const today = now.getDate()
@@ -24,11 +23,16 @@ export async function GET(request: Request) {
   // Build the set of dueDayOfMonth values that should trigger today. We send
   // 2 days before AND 1 day before AND on-the-day. Three different copies so
   // the urgency reads correctly.
+  // A due day of 29–31 falls on the last day of shorter months, so near the
+  // end of the month also match the days that don't exist this month.
+  const lastDay = daysInMonth(now.getFullYear(), now.getMonth())
+  const dueDays = [today, today + 1, today + 2].filter((d) => d <= lastDay)
+  if (today + 2 >= lastDay) for (let d = lastDay + 1; d <= 31; d++) dueDays.push(d)
   const buckets = await prisma.bucket.findMany({
     where: {
       archivedAt: null,
       kind: "bills",
-      dueDayOfMonth: { in: [today, today + 1, today + 2] },
+      dueDayOfMonth: { in: dueDays },
       user: { pushBillsDueOn: true },
     },
     select: {
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
 
   let pushSent = 0
   for (const b of due) {
-    const day = b.dueDayOfMonth!
+    const day = Math.min(b.dueDayOfMonth!, lastDay)
     const diff = day - today
     const tone =
       diff === 0 ? "Due today" : diff === 1 ? "Due tomorrow" : `Due in ${diff} days`

@@ -14,7 +14,7 @@ import type {
   Project,
   UserProfile,
 } from "./types"
-import { fmtMoney } from "./format"
+import { fmtMoney, sentThisMonth } from "./format"
 import { TabBar, Toast, type TabId } from "./ui"
 import { HomeScreen } from "./screens/home"
 import { BankScreen } from "./screens/bank"
@@ -24,7 +24,6 @@ import { InsightsScreen } from "./screens/insights"
 import { ProjectsScreen } from "./screens/projects"
 import { WrapScreen } from "./screens/wrap"
 import { MoreScreen } from "./screens/more"
-import { LockGate } from "./lock-gate"
 import { AppTour } from "./tour/tour"
 import { PaydayReviewSheet, type PaydayDraft } from "./screens/payday-review"
 import {
@@ -440,7 +439,7 @@ export function PesaApp({
   }
 
   return (
-    <LockGate enabled={profile.appLockEnabled}>
+    <>
       <div className="scroll" style={{ position: "relative" }}>
         {content}
       </div>
@@ -470,7 +469,7 @@ export function PesaApp({
         currency={profile.currency}
         monthLabel={profile.monthLabel}
         remainingToDisburse={
-          state.salary - state.buckets.reduce((s, b) => s + b.allocated, 0)
+          state.salary - state.buckets.reduce((s, b) => s + sentThisMonth(b), 0)
         }
       />
 
@@ -479,6 +478,6 @@ export function PesaApp({
       {tourActive && (
         <AppTour tab={tab} setTab={setTab} onDone={() => setTourActive(false)} />
       )}
-    </LockGate>
+    </>
   )
 }

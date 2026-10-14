@@ -19,19 +19,33 @@ model User {
 
   // credentials provider
   passwordHash String?
+  // True while the password was set by someone who never proved they own
+  // this inbox (plain signup). The first inbox-proving sign-in (magic link,
+  // mobile email code) wipes such a password and ends every older session,
+  // so pre-registering someone else's email can't keep access to their data.
+  // A password reset (which is emailed) clears it.
+  passwordUnverified Boolean @default(false)
 
   // pesa profile
-  displayName     String?
-  salary          Int     @default(0)
-  currency        String  @default("GH₵")
-  monthLabel      String  @default("This month")
+  displayName      String?
+  salary           Int     @default(0)
+  currency         String  @default("GH₵")
+  monthLabel       String  @default("This month")
   // Calendar month ("YYYY-MM") the live disbursement tally (bucket.allocated)
   // belongs to. When the calendar advances past it we roll the month over.
-  activeMonth     String?
+  activeMonth      String?
   // Calendar month ("YYYY-MM") whose payday income was last credited to the
   // bank. Decoupled from `activeMonth` — pots reset on the 1st, but the bank
   // credit waits for `paydayDayOfMonth` (see lib/month.ts `ensurePaydayCredited`).
-  lastPayCreditYm String?
+  lastPayCreditYm  String?
+  // Calendar month ("YYYY-MM") the payday cron last auto-disbursed for this
+  // user — makes auto-payday idempotent across cron retries/double calls.
+  lastAutoPaydayYm String?
+
+  // Bumped whenever every existing session must die (password reset, a
+  // takeover-guarding verification). Web JWTs carry the value they were
+  // minted with and are rejected once it no longer matches.
+  sessionVersion Int @default(0)
 
   // pesa settings flags
   roundUpsEnabled   Boolean   @default(false)
@@ -40,6 +54,9 @@ model User {
   paydayDayOfMonth  Int?
   appLockEnabled    Boolean   @default(false)
   appLockPinHash    String?
+  // Wrong-PIN lockout (see app/actions/settings.ts verifyAppPinCore).
+  pinFailedAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
   onboardedAt       DateTime?
   tourCompletedAt   DateTime?
 
@@ -52,19 +69,20 @@ model User {
   // auto-disburse on payday using last month's template
   autoPaydayOn Boolean @default(false)
 
-  accounts           Account[]
-  sessions           Session[]
-  buckets            Bucket[]
-  txns               Transaction[]
-  pushSubscriptions  PushSubscription[]
-  incomeSources      IncomeSource[]
-  bankTxns           BankTransaction[]
-  bankAccounts       BankAccount[]
-  projects           Project[]
-  milestones         Milestone[]
-  milestoneTxns      MilestoneTransaction[]
-  mobileSessions     MobileSession[]
-  mobileDeviceTokens MobileDeviceToken[]
+  accounts            Account[]
+  sessions            Session[]
+  buckets             Bucket[]
+  txns                Transaction[]
+  pushSubscriptions   PushSubscription[]
+  incomeSources       IncomeSource[]
+  bankTxns            BankTransaction[]
+  bankAccounts        BankAccount[]
+  projects            Project[]
+  milestones          Milestone[]
+  milestoneTxns       MilestoneTransaction[]
+  mobileSessions      MobileSession[]
+  mobileDeviceTokens  MobileDeviceToken[]
+  passwordResetTokens PasswordResetToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,6 +151,9 @@ model MobileSession {
   createdAt        DateTime  @default(now())
   expiresAt        DateTime
   revokedAt        DateTime?
+  // App lock, enforced per session: when the user has a PIN, this session's
+  // API calls are refused (423) until the PIN is verified on it.
+  unlockedAt       DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -156,6 +177,10 @@ model Bucket {
   // If true, unspent balance (allocated - spent) rolls into next month's
   // starting allocated instead of resetting to zero at rollover.
   carryOver     Boolean   @default(false)
+  // For carry-over pots: the part of `allocated` brought forward from last
+  // month at rollover. It isn't new money this month, so "disbursed this
+  // month" is `allocated - carriedIn` (never counts against the salary).
+  carriedIn     Int       @default(0)
   archivedAt    DateTime?
   createdAt     DateTime  @default(now())
 
@@ -205,7 +230,10 @@ model BankAccount {
   name       String
   icon       String    @default("wallet")
   // Disbursements and the monthly income credit always target the primary
-  // account (see lib/bank.ts `getPrimaryAccountId`). Exactly one per user.
+  // account (see lib/bank.ts `getPrimaryAccountId`). Exactly one per user —
+  // enforced by the partial unique index "BankAccount_one_primary_per_user"
+  // (raw SQL in migration 20261014*_phase9_hardening). Prisma can't model it,
+  // so if a future `migrate dev` proposes DROP INDEX for it, delete that line.
   isPrimary  Boolean   @default(false)
   balance    Int       @default(0)
   order      Int       @default(0)
@@ -328,4 +356,27 @@ model MilestoneTransaction {
 
   @@index([userId, occurredAt])
   @@index([milestoneId, occurredAt])
+}
+
+/// Password-reset links. Only a SHA-256 of the emailed token is stored, and a
+/// new request (or a successful reset) deletes every other token for the user.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Fixed-window rate-limit counters (lib/rate-limit.ts). One row per
+/// "action:subject" key; works across serverless instances because it lives
+/// in Postgres.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
 }

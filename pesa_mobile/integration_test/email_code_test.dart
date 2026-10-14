@@ -1,30 +1,32 @@
-import 'dart:io';
-
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:pesa_mobile/app.dart';
+import 'package:pesa_mobile/core/env.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 
 /// Exercises the passwordless email-code sign-in end-to-end against the
-/// live Next.js dev server. The dev server logs the plaintext code to
-/// stdout in non-production (see app/api/mobile/auth/email-code/request),
-/// which this test reads back from the redirected dev-server log file
-/// instead of an inbox, since there's no test mailbox in this environment.
-/// Requires `npm run dev > /tmp/pesa-dev.log 2>&1 &` running.
-Future<String> _readCodeFromDevLog(String email) async {
-  final file = File('/tmp/pesa-dev.log');
-  final pattern = RegExp('mobile email-code for ${RegExp.escape(email)}: (\\d{6})');
+/// live Next.js dev server. There's no test mailbox, so the code is fetched
+/// from the dev server's dev-only endpoint (`/api/mobile/dev/last-code`,
+/// 404 in production) — this works from an emulator, unlike reading the
+/// server's log file. Requires `npm run dev` running.
+Future<String> _readCodeFromDevServer(String email) async {
+  final dio = Dio(BaseOptions(baseUrl: Env.apiBaseUrl));
   for (var attempt = 0; attempt < 20; attempt++) {
-    if (file.existsSync()) {
-      final match = pattern.firstMatch(await file.readAsString());
-      if (match != null) return match.group(1)!;
+    try {
+      final res = await dio.get<Map<String, dynamic>>(
+        '/api/mobile/dev/last-code',
+        queryParameters: {'email': email},
+      );
+      return (res.data!['data'] as Map<String, dynamic>)['code'] as String;
+    } on DioException {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-    await Future<void>.delayed(const Duration(milliseconds: 250));
   }
-  throw StateError('Timed out waiting for the email code to appear in the dev log for $email');
+  throw StateError('Timed out waiting for the dev server to issue a code for $email');
 }
 
 void main() {
@@ -48,7 +50,7 @@ void main() {
 
     expect(find.widgetWithText(TextFormField, 'Code'), findsOneWidget);
 
-    final code = await _readCodeFromDevLog(uniqueEmail);
+    final code = await _readCodeFromDevServer(uniqueEmail);
     await tester.enterText(find.widgetWithText(TextFormField, 'Code'), code);
     await tester.tap(find.widgetWithText(FilledButton, 'Verify'));
     await tester.pumpAndSettle(const Duration(seconds: 10));

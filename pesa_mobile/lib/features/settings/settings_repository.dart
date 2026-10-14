@@ -7,6 +7,16 @@ import '../auth/auth_provider.dart';
 
 /// Writes for `app/api/mobile/{settings,income-sources}`. Reads come from
 /// bootstrap (`profile`, `incomeSources`).
+class PinResult {
+  const PinResult({required this.ok, this.error, this.signedOut = false});
+
+  final bool ok;
+  final String? error;
+
+  /// Too many wrong PINs: the server ended every session.
+  final bool signedOut;
+}
+
 class SettingsRepository {
   SettingsRepository({required this._apiClient});
 
@@ -33,24 +43,45 @@ class SettingsRepository {
     ),
   );
 
-  Future<void> setAppLock(String pin) =>
-      _send(() => _apiClient.dio.post<void>('/api/mobile/settings/app-lock', data: {'pin': pin}));
+  Future<void> setAppLock(String pin, {String? currentPin}) => _send(
+    () => _apiClient.dio.post<void>(
+      '/api/mobile/settings/app-lock',
+      data: {'pin': pin, 'currentPin': ?currentPin},
+    ),
+  );
 
   Future<void> disableAppLock(String pin) =>
       _send(() => _apiClient.dio.delete<void>('/api/mobile/settings/app-lock', data: {'pin': pin}));
 
-  /// Always verified server-side — there is no local PIN copy.
-  Future<bool> verifyPin(String pin) async {
+  /// Always verified server-side — there is no local PIN copy. A correct PIN
+  /// unlocks this session on the server; wrong ones count toward a lockout.
+  Future<PinResult> verifyPin(String pin) async {
     try {
       final response = await _apiClient.dio.post<Map<String, dynamic>>(
         '/api/mobile/settings/app-lock/verify',
         data: {'pin': pin},
       );
-      return (response.data!['data'] as Map<String, dynamic>)['ok'] == true;
+      final data = response.data!['data'] as Map<String, dynamic>;
+      return PinResult(
+        ok: data['ok'] == true,
+        error: data['error'] as String?,
+        signedOut: data['signedOut'] == true,
+      );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }
   }
+
+  /// Re-locks this session server-side (best effort, e.g. on backgrounding).
+  Future<void> lockSession() =>
+      _send(() => _apiClient.dio.post<void>('/api/mobile/settings/app-lock/lock'));
+
+  Future<void> setPushPrefs({bool? payday, bool? bucketHit, bool? wrap, bool? billsDue}) => _send(
+    () => _apiClient.dio.patch<void>(
+      '/api/mobile/settings/push',
+      data: {'payday': ?payday, 'bucketHit': ?bucketHit, 'wrap': ?wrap, 'billsDue': ?billsDue},
+    ),
+  );
 
   Future<void> resetMonth() =>
       _send(() => _apiClient.dio.post<void>('/api/mobile/settings/reset-month'));

@@ -27,3 +27,12 @@ export function fmtTxnDate(input: Date | string): string {
   if (dayDiff === 1) return "Yesterday"
   return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" })
 }
+
+/**
+ * What a pot received *this month*: its balance minus anything carried over
+ * from last month (carry-over pots). Use this — not `allocated` — for
+ * "disbursed / left to disburse" totals against the salary.
+ */
+export function sentThisMonth(b: { allocated: number; carriedIn?: number }): number {
+  return Math.max(0, b.allocated - (b.carriedIn ?? 0))
+}

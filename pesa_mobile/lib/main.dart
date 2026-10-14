@@ -5,9 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/env.dart';
+import 'core/push/push_service.dart';
 import 'features/splash/animated_splash.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Phone push is optional: stays off until Firebase config is added.
+  await PushService.init();
   // Instrument Serif is bundled (assets/google_fonts) under the SIL OFL.
   LicenseRegistry.addLicense(() async* {
     final license = await rootBundle.loadString('assets/google_fonts/OFL.txt');

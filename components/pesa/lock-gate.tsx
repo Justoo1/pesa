@@ -1,40 +1,21 @@
 "use client"
 
-import { useEffect, useState, useTransition, type ReactNode } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Icon } from "./icons"
 import { verifyAppPin } from "@/app/actions/settings"
 
-const STORAGE_KEY = "pesa.unlocked"
-const LOCK_EVENT = "pesa:lock-state"
-
-export function LockGate({
-  enabled,
-  children,
-}: {
-  enabled: boolean
-  children: ReactNode
-}) {
-  const [unlocked, setUnlocked] = useState<boolean | null>(null)
+/**
+ * The PIN pad shown instead of the app while the account's app lock is
+ * engaged on this browser. Whether it's locked is decided on the server
+ * (app/page.tsx renders only this — no account data — until a correct PIN
+ * sets the signed unlock cookie), so there's nothing to bypass client-side.
+ */
+export function LockScreen() {
+  const router = useRouter()
   const [pin, setPin] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-
-  useEffect(() => {
-    // Read the sessionStorage flag once on mount to decide whether to show
-    // the gate. setState in effect is unavoidable here because we can't read
-    // sessionStorage during SSR without a hydration mismatch.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (!enabled) {
-      setUnlocked(true)
-      return
-    }
-    setUnlocked(sessionStorage.getItem(STORAGE_KEY) === "1")
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [enabled])
-
-  if (!enabled) return <>{children}</>
-  if (unlocked === null) return null
-  if (unlocked) return <>{children}</>
 
   const press = (k: string) => {
     setError(null)
@@ -53,13 +34,15 @@ export function LockGate({
     startTransition(async () => {
       const res = await verifyAppPin({ pin })
       if (res.ok) {
-        sessionStorage.setItem(STORAGE_KEY, "1")
-        window.dispatchEvent(new Event(LOCK_EVENT))
-        setUnlocked(true)
-      } else {
-        setError("Wrong PIN. Try again.")
-        setPin("")
+        router.refresh()
+        return
       }
+      if ("signedOut" in res && res.signedOut) {
+        router.replace("/sign-in")
+        return
+      }
+      setError(res.error)
+      setPin("")
     })
   }
 

@@ -8,6 +8,7 @@ import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
 import 'helpers/disburse.dart';
+import 'helpers/tour.dart';
 
 /// Exercises Phase 3's core-write flows end-to-end against the live dev
 /// server: create a pot, disburse into it, spend from it, transfer to
@@ -33,16 +34,21 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
     await tester.pumpAndSettle(const Duration(seconds: 15)); // bootstrap fetch
+    await skipTourIfShown(tester);
 
     expect(find.text('Rent'), findsOneWidget);
 
-    // --- Create a new pot ---
+    // --- Create a new pot (Home "Edit" → Pots & targets → Add pot) ---
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Vacation');
     await tester.enterText(find.widgetWithText(TextFormField, 'Target'), '500');
     await tester.tap(find.widgetWithText(FilledButton, 'Create pot'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // The new pot is appended at the end of a long list — the ListView's
     // sliver only builds elements for children near the viewport, so it

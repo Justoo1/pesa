@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/theme/pesa_colors.dart';
 import '../../core/theme/pesa_theme.dart';
 import '../../core/widgets/pesa_button.dart';
+import '../../core/api_exception.dart';
 import '../auth/auth_provider.dart';
 import '../home/bootstrap_provider.dart';
 import 'settings_repository.dart';
@@ -22,9 +23,10 @@ class AppUnlocked extends Notifier<bool> {
 
 final appUnlockedProvider = NotifierProvider<AppUnlocked, bool>(AppUnlocked.new);
 
-/// Shows a PIN screen over [child] while the user has app lock enabled and
-/// hasn't unlocked this session. Like the web's `LockGate`, this is a
-/// privacy screen in the client — the API itself doesn't require unlocking.
+/// Shows a PIN screen over [child] while the app is locked. The server is the
+/// authority: every API call on a locked session fails with `LOCKED` (423),
+/// so the gate shows whenever bootstrap reports that, and also immediately
+/// on backgrounding (when it re-locks the session server-side too).
 class AppLockGate extends ConsumerStatefulWidget {
   const AppLockGate({super.key, required this.child});
 
@@ -49,17 +51,25 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) ref.read(appUnlockedProvider.notifier).lock();
+    if (state != AppLifecycleState.paused) return;
+    final lockEnabled = ref.read(bootstrapProvider).value?.profile.appLockEnabled ?? false;
+    if (!lockEnabled) return;
+    ref.read(appUnlockedProvider.notifier).lock();
+    // Best effort: if this fails (offline), the local gate still shows.
+    ref.read(settingsRepositoryProvider).lockSession().catchError((_) {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final lockEnabled = ref.watch(bootstrapProvider).value?.profile.appLockEnabled ?? false;
+    final bootstrap = ref.watch(bootstrapProvider);
+    final lockEnabled = bootstrap.value?.profile.appLockEnabled ?? false;
     final unlocked = ref.watch(appUnlockedProvider);
+    final serverSaysLocked = bootstrap.hasError && ApiException.from(bootstrap.error!).isLocked;
+    final showLock = serverSaysLocked || (lockEnabled && !unlocked);
     return Stack(
       children: [
         widget.child,
-        if (lockEnabled && !unlocked) const Positioned.fill(child: _LockScreen()),
+        if (showLock) const Positioned.fill(child: _LockScreen()),
       ],
     );
   }
@@ -91,11 +101,15 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
       _error = null;
     });
     try {
-      final ok = await ref.read(settingsRepositoryProvider).verifyPin(pin);
-      if (ok) {
+      final result = await ref.read(settingsRepositoryProvider).verifyPin(pin);
+      if (result.ok) {
         ref.read(appUnlockedProvider.notifier).unlock();
+        // The session is unlocked server-side now: reload the dashboard.
+        ref.invalidate(bootstrapProvider);
+      } else if (result.signedOut) {
+        await ref.read(authControllerProvider.notifier).logout();
       } else if (mounted) {
-        setState(() => _error = 'Wrong PIN.');
+        setState(() => _error = result.error ?? 'Wrong PIN.');
         _controller.clear();
       }
     } catch (e) {

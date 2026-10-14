@@ -33,24 +33,42 @@ export function ArchivedPotsSheet({
   onClose: () => void
   currency: string
 }) {
+  // Mounted only while open, so each opening starts fresh and fetches once.
+  if (!open) return null
+  return <ArchivedPotsContent onClose={onClose} currency={currency} />
+}
+
+function ArchivedPotsContent({
+  onClose,
+  currency,
+}: {
+  onClose: () => void
+  currency: string
+}) {
+  const open = true
   const router = useRouter()
   const [buckets, setBuckets] = useState<ArchivedBucket[] | null>(null)
-  const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [, startMutation] = useTransition()
+  // Still loading = nothing fetched yet and no error.
+  const loading = buckets === null && error === null
 
   useEffect(() => {
-    if (!open) return
-    setLoading(true)
-    setError(null)
+    // State is only set from the promise callbacks — never synchronously in
+    // the effect body (react-hooks/set-state-in-effect).
+    let cancelled = false
     listArchivedBuckets()
-      .then((rows) => setBuckets(rows as ArchivedBucket[]))
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Could not load archived pots"),
-      )
-      .finally(() => setLoading(false))
-  }, [open])
+      .then((rows) => {
+        if (!cancelled) setBuckets(rows as ArchivedBucket[])
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load archived pots")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const refresh = async () => {
     const rows = await listArchivedBuckets()

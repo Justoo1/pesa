@@ -84,8 +84,8 @@ class _WrapScreenState extends ConsumerState<WrapScreen> {
     final currency = data.profile.currency;
     final buckets = data.buckets;
     int sumOf(Set<String> kinds) =>
-        buckets.where((b) => kinds.contains(b.kind)).fold(0, (s, b) => s + b.allocated);
-    final total = buckets.fold<int>(0, (s, b) => s + b.allocated);
+        buckets.where((b) => kinds.contains(b.kind)).fold(0, (s, b) => s + b.sentThisMonth);
+    final total = buckets.fold<int>(0, (s, b) => s + b.sentThisMonth);
     final saved = sumOf(_savedKinds);
     final gave = sumOf(_gaveKinds);
     final lived = sumOf(_livedKinds);

@@ -49,7 +49,7 @@ class _BankBody extends StatelessWidget {
     final accounts = data.bankAccounts;
     final primary = accounts.where((a) => a.isPrimary).firstOrNull ?? accounts.firstOrNull;
     final otherAccounts = accounts.where((a) => a.id != primary?.id).toList();
-    final totalAllocated = data.buckets.fold<int>(0, (s, b) => s + b.allocated);
+    final totalAllocated = data.buckets.fold<int>(0, (s, b) => s + b.sentThisMonth);
     final totalTarget = data.buckets.fold<int>(0, (s, b) => s + b.target);
     final totalBalance = accounts.fold<int>(0, (s, a) => s + a.balance);
     // Same derivation as the web: salary not earmarked to any pot target,

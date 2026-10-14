@@ -13,6 +13,7 @@ import '../../core/widgets/pesa_card.dart';
 import '../../core/widgets/row_icon_chip.dart';
 import '../../core/widgets/screen_header.dart';
 import '../home/bootstrap_provider.dart';
+import 'add_past_txn_sheet.dart';
 import 'months_repository.dart';
 
 /// Ports `app/months/page.tsx`: every month with activity, newest first.
@@ -25,7 +26,16 @@ class MonthsScreen extends ConsumerWidget {
     final months = ref.watch(monthsListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Past months')),
+      appBar: AppBar(
+        title: const Text('Past months'),
+        actions: [
+          IconButton(
+            tooltip: 'Add to a past month',
+            icon: const Icon(LucideIcons.plus),
+            onPressed: () => showAddPastTxnSheet(context),
+          ),
+        ],
+      ),
       body: AsyncDataView(
         value: months,
         onRefresh: () => ref.refresh(monthsListProvider.future),
@@ -89,7 +99,17 @@ class MonthDetailScreen extends ConsumerWidget {
     final detail = ref.watch(monthDetailProvider(ym));
 
     return Scaffold(
-      appBar: AppBar(title: Text(detail.value?.label ?? '')),
+      appBar: AppBar(
+        title: Text(detail.value?.label ?? ''),
+        actions: [
+          if (detail.value?.isPastMonth ?? false)
+            IconButton(
+              tooltip: 'Add to this month',
+              icon: const Icon(LucideIcons.plus),
+              onPressed: () => showAddPastTxnSheet(context, ym: ym),
+            ),
+        ],
+      ),
       body: AsyncDataView(
         value: detail,
         onRefresh: () => ref.refresh(monthDetailProvider(ym).future),

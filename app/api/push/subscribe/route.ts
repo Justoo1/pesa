@@ -3,9 +3,13 @@ import { z } from "zod"
 
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
+import { isAllowedPushEndpoint } from "@/lib/push-hosts"
 
 const subscribeSchema = z.object({
-  endpoint: z.string().url(),
+  endpoint: z
+    .string()
+    .url()
+    .refine(isAllowedPushEndpoint, "Not a supported browser push service"),
   keys: z.object({
     p256dh: z.string().min(1),
     auth: z.string().min(1),
@@ -15,23 +19,24 @@ const subscribeSchema = z.object({
 
 export async function POST(request: Request) {
   const userId = await requireUserId()
-  const body = await request.json()
-  const parsed = subscribeSchema.parse(body)
+  const parsed = subscribeSchema.safeParse(await request.json())
+  if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 })
+  const sub = parsed.data
 
   await prisma.pushSubscription.upsert({
-    where: { endpoint: parsed.endpoint },
+    where: { endpoint: sub.endpoint },
     create: {
       userId,
-      endpoint: parsed.endpoint,
-      p256dh: parsed.keys.p256dh,
-      auth: parsed.keys.auth,
-      userAgent: parsed.userAgent,
+      endpoint: sub.endpoint,
+      p256dh: sub.keys.p256dh,
+      auth: sub.keys.auth,
+      userAgent: sub.userAgent,
     },
     update: {
       userId,
-      p256dh: parsed.keys.p256dh,
-      auth: parsed.keys.auth,
-      userAgent: parsed.userAgent,
+      p256dh: sub.keys.p256dh,
+      auth: sub.keys.auth,
+      userAgent: sub.userAgent,
     },
   })
 

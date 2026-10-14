@@ -13,10 +13,12 @@ import '../../core/models/month_row.dart';
 import '../../core/theme/pesa_colors.dart';
 import '../../core/theme/pesa_metrics.dart';
 import '../../core/theme/pesa_theme.dart';
+import '../../core/widgets/nudge_banners.dart';
 import '../../core/widgets/pesa_card.dart';
 import '../../core/widgets/pesa_ring.dart';
 import '../../core/widgets/screen_header.dart';
 import '../home/bootstrap_provider.dart';
+import 'net_worth_sheet.dart';
 
 const _gold = Color(0xFFF1E1B8);
 const _goldInk = Color(0xFF6E4F12);
@@ -98,13 +100,14 @@ class _InsightsBody extends StatelessWidget {
     final currency = data.profile.currency;
     final stats = _Stats(data);
     final firstMonth = stats.currTotal == 0 && stats.noData;
-    final flows = data.buckets.where((b) => b.allocated > 0).toList()
-      ..sort((a, b) => b.allocated.compareTo(a.allocated));
+    final flows = data.buckets.where((b) => b.sentThisMonth > 0).toList()
+      ..sort((a, b) => b.sentThisMonth.compareTo(a.sentThisMonth));
 
     return ListView(
       key: const Key('insights-list'),
       padding: const EdgeInsets.only(bottom: 28),
       children: [
+        MilestoneBanner(buckets: data.buckets, currency: data.profile.currency),
         firstMonth
             ? const ScreenHeader(eyebrow: 'Insights', title: 'Your', italic: 'first month.')
             : const ScreenHeader(eyebrow: 'Insights', title: "You're", italic: 'growing.'),
@@ -195,8 +198,8 @@ class _InsightsBody extends StatelessWidget {
                             _FlowRow(
                               name: b.name,
                               color: b.color,
-                              fraction: math.max(0.08, b.allocated / flows.first.allocated),
-                              amount: formatMoney(b.allocated, currency),
+                              fraction: math.max(0.08, b.sentThisMonth / flows.first.sentThisMonth),
+                              amount: formatMoney(b.sentThisMonth, currency),
                             ),
                         ],
                       ),
@@ -206,7 +209,10 @@ class _InsightsBody extends StatelessWidget {
         ),
         _Padded(
           top: 20,
-          child: _NetWorthCard(data: data, avgSaved: stats.avgSaved),
+          child: GestureDetector(
+            onTap: () => showNetWorthSheet(context, data, stats.avgSaved),
+            child: _NetWorthCard(data: data, avgSaved: stats.avgSaved),
+          ),
         ),
         _Padded(
           top: 12,

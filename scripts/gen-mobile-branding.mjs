@@ -2,16 +2,17 @@
 // Renders the mobile app's branding PNGs from the web logo (same paths as
 // app/icon.svg / app/apple-icon.tsx) into pesa_mobile/assets/branding/:
 //
-//   node scripts/gen-mobile-branding.cjs
+//   node scripts/gen-mobile-branding.mjs
 //   cd pesa_mobile && dart run flutter_launcher_icons && dart run flutter_native_splash:create
 //
 // The native splash deliberately shows an EMPTY pot: the Flutter animated
 // splash (lib/features/splash/animated_splash.dart) starts from that exact
 // frame and fills it, so the hand-off is seamless.
-const path = require("path")
-const sharp = require("sharp")
+import path from "path"
+import { fileURLToPath } from "url"
+import sharp from "sharp"
 
-const out = path.join(__dirname, "..", "pesa_mobile", "assets", "branding")
+const out = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "pesa_mobile", "assets", "branding")
 
 const body = `<path d="M6.5 12c0-2.2 1.8-4 4-4h11c2.2 0 4 1.8 4 4v10.5c0 2.5-2 4.5-4.5 4.5h-10c-2.5 0-4.5-2-4.5-4.5z" fill="#C9714B"/>`
 const rim = `<rect x="5.5" y="7" width="21" height="3.5" rx="1.75" fill="#9F5234"/>`

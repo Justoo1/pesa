@@ -246,6 +246,12 @@ export const pushPrefsSchema = z.object({
 
 export const appLockPinSchema = z.object({ pin: z.string().regex(/^\d{4,8}$/) })
 
+/** Setting a PIN; `currentPin` is required when one is already set. */
+export const setAppLockSchema = z.object({
+  pin: z.string().regex(/^\d{4,8}$/),
+  currentPin: z.string().regex(/^\d{4,8}$/).optional(),
+})
+
 export const deleteAccountSchema = z.object({ confirmEmail: z.string().email() })
 
 // --- income sources (app/actions/income-sources.ts) ---

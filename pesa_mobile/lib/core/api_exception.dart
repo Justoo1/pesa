@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 /// server-provided message (already user-safe; see lib/mobile/response.ts),
 /// so screens can surface it verbatim instead of a generic error string.
 class ApiException implements Exception {
-  ApiException(this.message, {this.isNetwork = false});
+  ApiException(this.message, {this.isNetwork = false, this.code});
 
   factory ApiException.fromDioException(DioException e) {
     switch (e.type) {
@@ -21,8 +21,9 @@ class ApiException implements Exception {
     }
     final data = e.response?.data;
     if (data is Map && data['error'] is Map) {
-      final message = (data['error'] as Map)['message'];
-      if (message is String) return ApiException(message);
+      final error = data['error'] as Map;
+      final message = error['message'];
+      if (message is String) return ApiException(message, code: error['code'] as String?);
     }
     return ApiException('Something went wrong. Please try again.');
   }
@@ -39,6 +40,12 @@ class ApiException implements Exception {
   /// True when the server couldn't be reached at all (offline, timeout) —
   /// as opposed to the server answering with an error.
   final bool isNetwork;
+
+  /// The server's error code (`VALIDATION_ERROR`, `LOCKED`, `RATE_LIMITED`…).
+  final String? code;
+
+  /// The session is app-locked server-side until the PIN is verified.
+  bool get isLocked => code == 'LOCKED';
 
   @override
   String toString() => message;

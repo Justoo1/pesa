@@ -8,6 +8,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/months/months_screen.dart';
+import '../features/pots/pots_manager_screen.dart';
 import '../features/projects/project_road_screen.dart';
 import '../features/settings/app_lock.dart';
 import '../features/settings/income_sources_screen.dart';
@@ -59,6 +60,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/projects/:id',
         builder: (context, state) => ProjectRoadScreen(projectId: state.pathParameters['id']!),
       ),
+      GoRoute(path: '/pots', builder: (context, state) => const PotsManagerScreen()),
+      GoRoute(path: '/pots/archived', builder: (context, state) => const ArchivedPotsScreen()),
       GoRoute(
         path: '/settings/income-sources',
         builder: (context, state) => const IncomeSourcesScreen(),

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "../icons"
-import { fmtMoney, fmtTxnDate } from "../format"
+import { fmtMoney, fmtTxnDate, sentThisMonth } from "../format"
 import { Counter, MiniStat, Sheet } from "../ui"
 import type { AppState, BankAccount, BankTransaction, BankTransactionKind } from "../types"
 import {
@@ -670,7 +670,7 @@ export function BankScreen({
   monthlyBankSpend: number
 }) {
   const { buckets, salary } = state
-  const totalAllocated = buckets.reduce((s, b) => s + b.allocated, 0)
+  const totalAllocated = buckets.reduce((s, b) => s + sentThisMonth(b), 0)
   const totalTarget = buckets.reduce((s, b) => s + b.target, 0)
   const primary = bankAccounts.find((a) => a.isPrimary) ?? bankAccounts[0]
   const otherAccounts = bankAccounts.filter((a) => a.id !== primary?.id)

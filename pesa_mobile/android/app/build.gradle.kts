@@ -6,6 +6,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Phone push stays dormant until the Firebase config is dropped in
+// (see README "Push notifications"); without it the app builds and runs
+// with push simply unavailable.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Release signing reads android/key.properties (gitignored, never commit it):
 //   storePassword=…
 //   keyPassword=…

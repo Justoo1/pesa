@@ -8,6 +8,7 @@ import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
 import 'helpers/disburse.dart';
+import 'helpers/tour.dart';
 
 /// The Wrap tab against the live dev server: after one disbursement the
 /// month view's count-up settles on the real totals, highlights render, and
@@ -31,6 +32,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
     await tester.pumpAndSettle(const Duration(seconds: 15)); // bootstrap fetch
+    await skipTourIfShown(tester);
 
     // Disburse 1,200 into Savings (a "future" pot → counts as Saved).
     await tester.tap(find.text('Savings'));

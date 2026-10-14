@@ -1,4 +1,6 @@
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
+import { effectivePayday } from "@/lib/dates"
 
 /**
  * The account that disbursements and the monthly income credit always debit/
@@ -12,10 +14,23 @@ export async function getPrimaryAccountId(userId: string): Promise<string> {
     select: { id: true },
   })
   if (primary) return primary.id
-  const created = await prisma.bankAccount.create({
-    data: { userId, name: "Bank", icon: "wallet", isPrimary: true, balance: 0, order: 0 },
-  })
-  return created.id
+  try {
+    const created = await prisma.bankAccount.create({
+      data: { userId, name: "Bank", icon: "wallet", isPrimary: true, balance: 0, order: 0 },
+    })
+    return created.id
+  } catch (e) {
+    // A concurrent call created it first: the partial unique index
+    // "BankAccount_one_primary_per_user" rejects a second primary.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const existing = await prisma.bankAccount.findFirstOrThrow({
+        where: { userId, isPrimary: true, archivedAt: null },
+        select: { id: true },
+      })
+      return existing.id
+    }
+    throw e
+  }
 }
 
 /**
@@ -34,10 +49,14 @@ export async function loadMonthlyBankSpend(userId: string): Promise<number> {
   })
   const now = new Date()
   const payDay = user?.paydayDayOfMonth ?? 1
+  // Paydays of 29–31 land on the last day of shorter months (never the 1st–3rd
+  // of the next one, which would put the cycle start in the future).
+  const thisMonthPayday = effectivePayday(payDay, now.getFullYear(), now.getMonth())
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const start =
-    now.getDate() >= payDay
-      ? new Date(now.getFullYear(), now.getMonth(), payDay)
-      : new Date(now.getFullYear(), now.getMonth() - 1, payDay)
+    now.getDate() >= thisMonthPayday
+      ? new Date(now.getFullYear(), now.getMonth(), thisMonthPayday)
+      : new Date(prev.getFullYear(), prev.getMonth(), effectivePayday(payDay, prev.getFullYear(), prev.getMonth()))
   const result = await prisma.bankTransaction.aggregate({
     where: { userId, kind: "spend", occurredAt: { gte: start } },
     _sum: { amount: true },

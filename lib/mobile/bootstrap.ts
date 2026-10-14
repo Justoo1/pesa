@@ -178,6 +178,7 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
     kind: b.kind as Bucket["kind"],
     dueDayOfMonth: b.dueDayOfMonth,
     carryOver: b.carryOver,
+    carriedIn: b.carriedIn,
     projection: projections[b.id] ?? null,
   }))
 

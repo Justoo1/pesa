@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Icon } from "../icons"
-import { fmtMoney } from "../format"
+import { fmtMoney, sentThisMonth } from "../format"
 import { BucketCard, Counter, MiniStat, type TabId } from "../ui"
 import { PaceAlertBanner } from "../pace-alert-banner"
 import type { AppState } from "../types"
-import { signOutAction } from "@/app/actions/auth"
+import { SignOutButton } from "../sign-out-button"
 
 function greetingFor(hour: number): string {
   if (hour < 5) return "Up late"
@@ -38,7 +38,7 @@ export function HomeScreen({
   monthLabel: string
 }) {
   const { buckets, salary } = state
-  const totalAllocated = buckets.reduce((s, b) => s + b.allocated, 0)
+  const totalAllocated = buckets.reduce((s, b) => s + sentThisMonth(b), 0)
   const totalTarget = buckets.reduce((s, b) => s + b.target, 0)
   const remaining = salary - totalAllocated
   const pctDone = salary > 0 ? (totalAllocated / salary) * 100 : 0
@@ -81,16 +81,9 @@ export function HomeScreen({
             <span suppressHydrationWarning>{greeting ?? "Hello"}</span>,&nbsp;<span className="italic">{userName}.</span>
           </div>
         </div>
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            className="btn btn-ghost btn-icon"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <Icon name="logout" size={18} />
-          </button>
-        </form>
+        <SignOutButton className="btn btn-ghost btn-icon" label="Sign out">
+          <Icon name="logout" size={18} />
+        </SignOutButton>
       </div>
 
       <PaceAlertBanner buckets={buckets} currency={currency} />

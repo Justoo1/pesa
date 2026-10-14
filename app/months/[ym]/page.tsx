@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@/auth"
+import { isWebLocked } from "@/lib/app-lock"
 import { prisma } from "@/lib/db"
 import { fmtMoney, fmtTxnDate } from "@/components/pesa/format"
 import { Icon } from "@/components/pesa/icons"
@@ -22,6 +23,8 @@ export default async function MonthDetailPage({
   const session = await auth()
   if (!session?.user?.id) redirect("/sign-in")
   const userId = session.user.id
+  // Locked browsers only ever see the PIN pad (on /).
+  if (await isWebLocked(userId)) redirect("/")
 
   const [user, detail, activeBuckets, filledByMonth] = await Promise.all([
     prisma.user.findUniqueOrThrow({

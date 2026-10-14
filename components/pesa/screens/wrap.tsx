@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Icon } from "../icons"
-import { fmtMoney } from "../format"
+import { fmtMoney, sentThisMonth } from "../format"
 import type { AppState, MonthRow } from "../types"
 
 function WrapStat({
@@ -82,16 +82,16 @@ export function WrapScreen({
   const wrapLabel = isFinalDay ? "The Wrap" : "Month so far"
   const [view, setView] = useState<"month" | "year">("month")
 
-  const totalAllocated = state.buckets.reduce((s, b) => s + b.allocated, 0)
+  const totalAllocated = state.buckets.reduce((s, b) => s + sentThisMonth(b), 0)
   const saved = state.buckets
     .filter((b) => b.kind === "future" || b.kind === "emergency" || b.kind === "debt")
-    .reduce((s, b) => s + b.allocated, 0)
+    .reduce((s, b) => s + sentThisMonth(b), 0)
   const given = state.buckets
     .filter((b) => b.kind === "give" || b.kind === "people")
-    .reduce((s, b) => s + b.allocated, 0)
+    .reduce((s, b) => s + sentThisMonth(b), 0)
   const lived = state.buckets
     .filter((b) => b.kind === "essential" || b.kind === "bills")
-    .reduce((s, b) => s + b.allocated, 0)
+    .reduce((s, b) => s + sentThisMonth(b), 0)
   const fullCount = state.buckets.filter((b) => b.allocated >= b.target).length
 
   const highlights = useMemo<Highlight[]>(() => {

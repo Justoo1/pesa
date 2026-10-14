@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Icon } from "../icons"
-import { fmtMoney } from "../format"
+import { fmtMoney, sentThisMonth } from "../format"
 import { Pot, Sheet } from "../ui"
 import type { Action, AppState } from "../types"
 
@@ -51,7 +51,7 @@ function DisburseFlowContent({
   const [coins, setCoins] = useState<Array<{ id: number; delay: number }>>([])
 
   const bucket = state.buckets.find((b) => b.id === bucketId) || null
-  const remaining = state.salary - state.buckets.reduce((s, b) => s + b.allocated, 0)
+  const remaining = state.salary - state.buckets.reduce((s, b) => s + sentThisMonth(b), 0)
   const stillNeeds = bucket ? Math.max(0, bucket.target - bucket.allocated) : 0
   // A pot can't be filled past its target (the server enforces this too).
   const overLimit = amount > stillNeeds

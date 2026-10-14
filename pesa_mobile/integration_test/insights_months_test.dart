@@ -9,6 +9,7 @@ import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
 import 'helpers/disburse.dart';
+import 'helpers/tour.dart';
 
 /// Phase 4.2 acceptance against the live dev server: after one disbursement,
 /// the Insights tab reflects it (from bootstrap data) and the Months history
@@ -31,6 +32,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
     await tester.pumpAndSettle(const Duration(seconds: 15)); // bootstrap fetch
+    await skipTourIfShown(tester);
 
     // --- Disburse 500 into Rent (an "essential" pot → counts as Lived) ---
     await tester.tap(find.text('Rent'));

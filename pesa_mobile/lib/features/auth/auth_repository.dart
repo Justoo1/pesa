@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../core/api_client.dart';
+import '../../core/push/push_service.dart';
 import '../../core/token_storage.dart';
 
 class AuthUser {
@@ -78,6 +79,8 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    // Stop this phone receiving the account's pushes before the session ends.
+    await PushService.unregister(_apiClient);
     final refreshToken = await _tokenStorage.readRefreshToken();
     if (refreshToken != null) {
       try {

@@ -2,24 +2,28 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/format.dart';
+import '../../core/push/push_service.dart';
 import '../../core/models/payday_draft.dart';
 import '../../core/theme/pesa_colors.dart';
 import '../../core/theme/pesa_theme.dart';
 import '../../core/widgets/async_data_view.dart';
 import '../../core/widgets/mini_stat.dart';
+import '../../core/widgets/nudge_banners.dart';
 import '../../core/widgets/pesa_bottom_nav.dart';
 import '../../core/widgets/pesa_button.dart';
 import '../../core/widgets/pesa_card.dart';
 import '../auth/auth_provider.dart';
 import '../bank/bank_screen.dart';
+import '../help/help_and_tour.dart';
 import '../insights/insights_screen.dart';
 import '../pots/disburse_flow.dart';
 import '../pots/pot_action_sheet.dart';
 import '../pots/pot_actions_provider.dart';
-import '../pots/pot_form_sheet.dart';
+import '../pots/pot_editor_sheet.dart';
 import '../projects/projects_screen.dart';
 import '../settings/settings_screen.dart';
 import '../wrap/wrap_screen.dart';
@@ -34,26 +38,46 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with FirstRunTour {
   int _tabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Signed in: keep this phone's push token registered (no-op without Firebase).
+    PushService.syncIfPermitted(ref.read(apiClientProvider));
+  }
 
   void _goTo(int index) => setState(() => _tabIndex = index);
 
   @override
   Widget build(BuildContext context) {
+    // The first-run tour walks across tabs: follow it.
+    ref.listen<int?>(tourProvider, (_, step) {
+      if (step != null) _goTo(tourSteps[step].tab);
+    });
+    if (ref.watch(bootstrapProvider).hasValue) maybeStartTour();
+
     return Scaffold(
       // Every tab renders its own web-style header; no AppBar.
       body: SafeArea(
         bottom: false,
-        child: IndexedStack(
-          index: _tabIndex,
+        child: Stack(
           children: [
-            _HomeTab(onOpenWrap: () => _goTo(4)),
-            const BankScreen(),
-            const InsightsScreen(),
-            const ProjectsScreen(),
-            WrapScreen(active: _tabIndex == 4),
-            const SettingsScreen(),
+            Positioned.fill(
+              child: IndexedStack(
+                index: _tabIndex,
+                children: [
+                  _HomeTab(onOpenWrap: () => _goTo(4)),
+                  const BankScreen(),
+                  const InsightsScreen(),
+                  const ProjectsScreen(),
+                  WrapScreen(active: _tabIndex == 4),
+                  const SettingsScreen(),
+                ],
+              ),
+            ),
+            const Positioned(left: 0, right: 0, bottom: 0, child: TourCard()),
           ],
         ),
       ),
@@ -89,7 +113,7 @@ class _HomeTab extends ConsumerWidget {
         final currency = data.profile.currency;
         final buckets = data.buckets;
         final salary = data.profile.salary;
-        final disbursed = buckets.fold<int>(0, (sum, b) => sum + b.allocated);
+        final disbursed = buckets.fold<int>(0, (sum, b) => sum + b.sentThisMonth);
         final totalTarget = buckets.fold<int>(0, (sum, b) => sum + b.target);
         final filledCount = buckets.where((b) => b.allocated >= b.target).length;
         final serif = PesaTextStyles.serif(fontSize: 30);
@@ -136,6 +160,9 @@ class _HomeTab extends ConsumerWidget {
                   ],
                 ),
               ),
+            ),
+            SliverToBoxAdapter(
+              child: PaceAlertBanner(buckets: buckets, currency: currency),
             ),
             SliverToBoxAdapter(
               child: Padding(
@@ -196,10 +223,11 @@ class _HomeTab extends ConsumerWidget {
                   children: [
                     Text('Your pots', style: PesaTextStyles.serif(fontSize: 22)),
                     TextButton.icon(
-                      onPressed: () => showCreatePotSheet(context),
-                      // Material's add glyph (the pot test looks for it).
-                      icon: const Icon(Icons.add, size: 14),
-                      label: const Text('Add pot'),
+                      // Like the web's "Edit": opens Pots & targets (add, edit,
+                      // reorder, archive).
+                      onPressed: () => context.push('/pots'),
+                      icon: const Icon(LucideIcons.pencil, size: 14),
+                      label: const Text('Edit'),
                       style: TextButton.styleFrom(
                         foregroundColor: PesaColors.ink2,
                         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -228,7 +256,7 @@ class _HomeTab extends ConsumerWidget {
                           label: 'Create a pot',
                           icon: LucideIcons.plus,
                           variant: PesaButtonVariant.green,
-                          onPressed: () => showCreatePotSheet(context),
+                          onPressed: () => showPotEditorSheet(context),
                         ),
                       ],
                     ),

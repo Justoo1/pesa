@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
 import { requireUserId } from "@/lib/session"
 
-export async function markTourCompleted() {
-  const userId = await requireUserId()
+export async function markTourCompletedCore(userId: string) {
   await prisma.user.update({
     where: { id: userId },
     data: { tourCompletedAt: new Date() },
   })
   revalidatePath("/")
+}
+
+export async function markTourCompleted() {
+  const userId = await requireUserId()
+  return markTourCompletedCore(userId)
 }

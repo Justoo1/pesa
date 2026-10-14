@@ -36,9 +36,15 @@ flutter test integration_test/<name>.dart -d emulator-5554 \
 ```
 
 The integration tests register throwaway users against the live dev database.
-`email_code_test.dart` reads the code from `/tmp/pesa-dev.log`, so it only works
-on a desktop target. From the repo root, `npm run smoke:mobile` checks the whole
-mobile API without a device.
+`email_code_test.dart` gets its sign-in code from the dev server's dev-only
+`/api/mobile/dev/last-code` endpoint, which returns 404 in production. That
+lets it run on an emulator too.
+
+For local test runs, put `RATE_LIMITS_DISABLED=1` in `.env`, because the tests
+register many accounts from one IP. This switch is ignored in production.
+
+From the repo root, `npm run smoke:mobile` checks the whole mobile API
+without a device.
 
 ## Release builds
 
@@ -90,11 +96,39 @@ These need a Mac with Xcode.
 `version: x.y.z+N` in `pubspec.yaml` sets both platforms. Increase `N` (the
 build number) for every store upload.
 
+## Push notifications (Firebase)
+
+Phone push is built in but **off until you add Firebase**. Without the config
+the app runs normally, and Settings → Push notifications shows "Not set up".
+
+1. Create a Firebase project at <https://console.firebase.google.com>.
+2. Add an **Android app** with package name `com.edtmsys.pesa`, download
+   `google-services.json`, and save it as `pesa_mobile/android/app/google-services.json`.
+   The Gradle build applies the Google Services plugin only when this file exists.
+3. Add an **iOS app** with bundle id `com.edtmsys.pesa` (this needs a Mac):
+   - Download `GoogleService-Info.plist` and add it to `ios/Runner` in Xcode.
+   - Upload an APNs auth key under Project settings → Cloud Messaging.
+   - Enable the Push Notifications and Background Modes → Remote notifications
+     capabilities.
+4. Set up the server:
+   - Project settings → Service accounts → **Generate new private key**.
+   - Put that JSON (raw, or base64-encoded) in the server env var
+     `FCM_SERVICE_ACCOUNT`, then redeploy.
+   - `lib/fcm.ts` sends through the FCM HTTP v1 API, and removes tokens FCM
+     reports as gone.
+5. Rebuild the app. In Settings → Push notifications, turning on any
+   notification asks for permission and registers the phone. Signing out
+   unregisters it.
+
+The same crons that send web push (`app/api/cron/*`) send phone push. Each
+notification type follows the user's settings for payday, pot full, monthly
+wrap and bills due.
+
 ## Branding
 
 - **Icon and native splash.** These are generated from `assets/branding/*.png`.
   Those images are rendered from the web logo (`app/icon.svg`) by
-  `scripts/gen-mobile-branding.cjs` in the repo root. The native splash
+  `scripts/gen-mobile-branding.mjs` in the repo root. The native splash
   deliberately shows an *empty* pot.
 - **Animated splash.** The Flutter splash (`lib/features/splash/animated_splash.dart`)
   starts from that empty pot, drops in three coins and fills the pot. It lasts
@@ -106,7 +140,7 @@ build number) for every store upload.
 To regenerate after changing the logo:
 
 ```sh
-node scripts/gen-mobile-branding.cjs          # from the repo root
+node scripts/gen-mobile-branding.mjs          # from the repo root
 cd pesa_mobile
 dart run flutter_launcher_icons && dart run flutter_native_splash:create
 ```

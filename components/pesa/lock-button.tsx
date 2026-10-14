@@ -1,36 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { lockApp } from "@/app/actions/settings"
 
-const STORAGE_KEY = "pesa.unlocked"
-const LOCK_EVENT = "pesa:lock-state"
-
+/** Status-bar "lock now" control: forgets this browser's server-side unlock. */
 export function LockButton({ appLockEnabled }: { appLockEnabled: boolean }) {
+  const router = useRouter()
   const [toast, setToast] = useState<string | null>(null)
-  const [locked, setLocked] = useState<boolean>(appLockEnabled)
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
-    const read = () => {
-      if (!appLockEnabled) {
-        setLocked(false)
-        return
-      }
-      setLocked(sessionStorage.getItem(STORAGE_KEY) !== "1")
-    }
-    read()
-    window.addEventListener(LOCK_EVENT, read)
-    return () => window.removeEventListener(LOCK_EVENT, read)
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [appLockEnabled])
-
-  if (locked) return null
+  const [, startTransition] = useTransition()
 
   const onClick = () => {
     if (appLockEnabled) {
-      sessionStorage.removeItem(STORAGE_KEY)
-      window.dispatchEvent(new Event(LOCK_EVENT))
-      window.location.reload()
+      startTransition(async () => {
+        await lockApp()
+        router.refresh()
+      })
       return
     }
     setToast("Set a PIN first in Settings · App lock.")

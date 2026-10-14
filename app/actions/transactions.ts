@@ -298,20 +298,34 @@ export async function applyPaydayTemplate(input: z.infer<typeof applyPaydayTempl
 
 export async function spendCore(userId: string, input: z.infer<typeof spendSchema>) {
   const { bucketId, amount, note, method, occurredAt } = spendSchema.parse(input)
+  // Like disbursements, a backdated spend belongs to its own past month: it's
+  // recorded as history but doesn't eat into this month's live pot balance.
+  const inCurrentMonth = !occurredAt || isInCurrentCalendarMonth(occurredAt)
 
-  const bucket = await prisma.bucket.findFirst({
-    where: { id: bucketId, userId, archivedAt: null },
-    select: { id: true, name: true, allocated: true, spent: true },
-  })
+  const [bucket, user] = await Promise.all([
+    prisma.bucket.findFirst({
+      where: { id: bucketId, userId, archivedAt: null },
+      select: { id: true, name: true, allocated: true, spent: true },
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { currency: true } }),
+  ])
   if (!bucket) throw new Error("Pot not found")
+  const overLimit = () =>
+    new Error(
+      `Only ${fmtMoney(Math.max(0, bucket.allocated - bucket.spent), user?.currency)} left in ${bucket.name}`,
+    )
+  if (inCurrentMonth && amount > bucket.allocated - bucket.spent) throw overLimit()
 
-  const available = bucket.allocated - bucket.spent
-  if (amount > available) {
-    throw new Error(`Only ${available} left in ${bucket.name}`)
-  }
-
-  await prisma.$transaction([
-    prisma.transaction.create({
+  await prisma.$transaction(async (tx) => {
+    if (inCurrentMonth) {
+      // Atomic claim: only matches while the pot still has the money, so two
+      // concurrent spends can't both pass the check above.
+      const claimed = await tx.$executeRaw`
+        UPDATE "Bucket" SET "spent" = "spent" + ${amount}
+        WHERE "id" = ${bucketId} AND "allocated" - "spent" >= ${amount}`
+      if (claimed !== 1) throw overLimit()
+    }
+    await tx.transaction.create({
       data: {
         userId,
         bucketId,
@@ -320,12 +334,8 @@ export async function spendCore(userId: string, input: z.infer<typeof spendSchem
         method: method || "Cash",
         ...(occurredAt ? { occurredAt } : {}),
       },
-    }),
-    prisma.bucket.update({
-      where: { id: bucketId },
-      data: { spent: { increment: amount } },
-    }),
-  ])
+    })
+  })
 
   revalidatePath("/")
   if (occurredAt) {
@@ -354,22 +364,34 @@ export async function transferCore(userId: string, input: z.infer<typeof bucketT
     }),
   ])
   if (!from || !to) throw new Error("Pot not found")
-  const available = from.allocated - from.spent
-  if (available < amount) {
-    throw new Error(`Only ${available} in ${from.name} to move`)
-  }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } })
+  const money = (n: number) => fmtMoney(Math.max(0, n), user?.currency)
+  const notEnough = () => new Error(`Only ${money(from.allocated - from.spent)} in ${from.name} to move`)
   // The receiving pot can't be pushed past its target either.
-  const room = Math.max(0, to.target - to.allocated)
-  if (amount > room) {
-    throw new Error(
-      room === 0 ? `${to.name} is already full` : `${to.name} only has room for ${room} more`,
+  const noRoom = () =>
+    new Error(
+      to.target - to.allocated <= 0
+        ? `${to.name} is already full`
+        : `${to.name} only has room for ${money(to.target - to.allocated)} more`,
     )
-  }
+  if (from.allocated - from.spent < amount) throw notEnough()
+  if (amount > to.target - to.allocated) throw noRoom()
 
   const transferId = randomUUID()
 
-  await prisma.$transaction([
-    prisma.transaction.create({
+  // Both sides are claimed with conditional UPDATEs inside one transaction,
+  // so concurrent moves can neither overdraw the source nor overfill the
+  // destination; any failed claim rolls the whole move back.
+  await prisma.$transaction(async (tx) => {
+    const out = await tx.$executeRaw`
+      UPDATE "Bucket" SET "allocated" = "allocated" - ${amount}
+      WHERE "id" = ${fromBucketId} AND "allocated" - "spent" >= ${amount}`
+    if (out !== 1) throw notEnough()
+    const into = await tx.$executeRaw`
+      UPDATE "Bucket" SET "allocated" = "allocated" + ${amount}
+      WHERE "id" = ${toBucketId} AND "allocated" + ${amount} <= "target"`
+    if (into !== 1) throw noRoom()
+    await tx.transaction.create({
       data: {
         userId,
         bucketId: fromBucketId,
@@ -378,8 +400,8 @@ export async function transferCore(userId: string, input: z.infer<typeof bucketT
         method: "Transfer",
         transferId,
       },
-    }),
-    prisma.transaction.create({
+    })
+    await tx.transaction.create({
       data: {
         userId,
         bucketId: toBucketId,
@@ -388,16 +410,8 @@ export async function transferCore(userId: string, input: z.infer<typeof bucketT
         method: "Transfer",
         transferId,
       },
-    }),
-    prisma.bucket.update({
-      where: { id: fromBucketId },
-      data: { allocated: { decrement: amount } },
-    }),
-    prisma.bucket.update({
-      where: { id: toBucketId },
-      data: { allocated: { increment: amount } },
-    }),
-  ])
+    })
+  })
 
   revalidatePath("/")
 }

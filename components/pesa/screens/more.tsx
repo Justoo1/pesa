@@ -23,7 +23,7 @@ import { AboutSheet } from "./about"
 import { HelpSheet } from "./help"
 import { ArchivedPotsSheet } from "./archived-pots"
 import { DeleteAccountSheet } from "./delete-account"
-import { signOutAction } from "@/app/actions/auth"
+import { SignOutButton } from "../sign-out-button"
 import { resetMonth } from "@/app/actions/settings"
 import { reorderBuckets } from "@/app/actions/buckets"
 import { useRef } from "react"
@@ -529,11 +529,7 @@ function SettingsPanel({
       </div>
 
       <div style={{ padding: "14px 20px 28px" }}>
-        <form action={signOutAction}>
-          <button type="submit" className="btn btn-soft btn-block">
-            Sign out
-          </button>
-        </form>
+        <SignOutButton className="btn btn-soft btn-block">Sign out</SignOutButton>
       </div>
 
       <EditProfileSheet

@@ -13,6 +13,7 @@ class Bucket {
     required this.kind,
     required this.dueDayOfMonth,
     required this.carryOver,
+    this.carriedIn = 0,
     required this.projection,
   });
 
@@ -28,6 +29,7 @@ class Bucket {
     kind: json['kind'] as String,
     dueDayOfMonth: json['dueDayOfMonth'] as int?,
     carryOver: json['carryOver'] as bool,
+    carriedIn: json['carriedIn'] as int? ?? 0,
     projection: json['projection'] == null
         ? null
         : PotProjection.fromJson(json['projection'] as Map<String, dynamic>),
@@ -44,7 +46,14 @@ class Bucket {
   final String kind;
   final int? dueDayOfMonth;
   final bool carryOver;
+
+  /// Part of [allocated] carried over from last month (carry-over pots).
+  final int carriedIn;
   final PotProjection? projection;
+
+  /// What this pot received *this month* — [allocated] minus the carried-in
+  /// part. Use it (not [allocated]) for disbursed / left-to-disburse totals.
+  int get sentThisMonth => allocated - carriedIn < 0 ? 0 : allocated - carriedIn;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -58,6 +67,7 @@ class Bucket {
     'kind': kind,
     'dueDayOfMonth': dueDayOfMonth,
     'carryOver': carryOver,
+    'carriedIn': carriedIn,
     'projection': projection?.toJson(),
   };
 }

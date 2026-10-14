@@ -62,7 +62,6 @@ function AppLockContent({
     startTransition(async () => {
       try {
         await setAppLock({ pin })
-        sessionStorage.setItem("pesa.unlocked", "1")
         router.refresh()
         onClose()
       } catch (e) {

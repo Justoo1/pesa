@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { auth } from "@/auth"
+import { isWebLocked } from "@/lib/app-lock"
 
 function csvEscape(value: string | number): string {
-  const s = String(value)
+  let s = String(value)
+  // Neutralize spreadsheet formulas in user text (a pot named "=HYPERLINK(…)"
+  // would otherwise execute when the CSV is opened in Excel/Sheets).
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
   return s
 }
@@ -12,6 +16,7 @@ export async function GET() {
   const session = await auth()
   const userId = session?.user?.id
   if (!userId) return new NextResponse("Unauthorized", { status: 401 })
+  if (await isWebLocked(userId)) return new NextResponse("Locked", { status: 423 })
 
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), 1)

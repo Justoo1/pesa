@@ -6,6 +6,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:pesa_mobile/app.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 
+import 'helpers/tour.dart';
+
 /// Exercises Phase 2's read-only dashboard end-to-end: register a fresh
 /// (freshly-seeded) user against the live dev server, then confirm the Home
 /// tab renders real data pulled from /api/mobile/bootstrap — not fixture/mock
@@ -33,6 +35,7 @@ void main() {
     // The bootstrap fetch is a second network round-trip after login/register
     // resolves, so give it its own settle window.
     await tester.pumpAndSettle(const Duration(seconds: 15));
+    await skipTourIfShown(tester);
 
     // Seeded starter pots (components/pesa/data.ts `initialBuckets`).
     expect(find.text('Rent'), findsOneWidget);

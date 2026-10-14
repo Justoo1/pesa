@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server"
+import { rejectUnauthorizedCron } from "@/lib/cron"
 import { prisma } from "@/lib/db"
 import { sendPushToUser } from "@/lib/push"
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  const auth = request.headers.get("authorization")
-  if (secret && auth !== `Bearer ${secret}`) {
-    return new NextResponse("Forbidden", { status: 403 })
-  }
+  const rejected = rejectUnauthorizedCron(request)
+  if (rejected) return rejected
 
   const users = await prisma.user.findMany({
     where: { pushWrapOn: true },
