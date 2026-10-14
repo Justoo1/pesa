@@ -48,10 +48,19 @@ export function withMobileRoute<Params extends Record<string, string> = Record<s
       if (error instanceof HttpError) {
         return mobileError(error.status, error.code, error.message)
       }
-      if (error instanceof Error) {
+      // A malformed body makes `request.json()` throw a SyntaxError.
+      if (error instanceof SyntaxError) {
+        return mobileError(400, "VALIDATION_ERROR", "Request body must be valid JSON")
+      }
+      // Domain rules in app/actions/* throw plain `Error`s with user-safe
+      // messages ("Only ¢50 left in Rent"), so those pass through. Anything
+      // else — Prisma errors (which embed file paths and query shapes),
+      // TypeErrors, config errors — is logged and hidden behind a 500.
+      if (error instanceof Error && error.constructor === Error) {
         return mobileError(400, "CONFLICT", error.message)
       }
-      return mobileError(500, "INTERNAL", "Something went wrong")
+      console.error("[mobile api] unhandled error:", error)
+      return mobileError(500, "INTERNAL", "Something went wrong. Please try again.")
     }
   }
 }

@@ -366,10 +366,14 @@ export async function loadMonthDetail(userId: string, ym: string): Promise<Month
   const isPastMonth =
     year < now.getFullYear() || (year === now.getFullYear() && month - 1 < now.getMonth())
 
+  // Same rule as loadAllMonths: plain spends (negative, no transferId) are
+  // listed but don't count toward the disbursed totals, so a month's detail
+  // always agrees with its row in the months list.
   let saved = 0
   let gave = 0
   let lived = 0
   for (const t of txns) {
+    if (t.amount < 0 && !t.transferId) continue
     if (SAVED_KINDS.has(t.bucket.kind)) saved += t.amount
     else if (GAVE_KINDS.has(t.bucket.kind)) gave += t.amount
     else if (LIVED_KINDS.has(t.bucket.kind)) lived += t.amount

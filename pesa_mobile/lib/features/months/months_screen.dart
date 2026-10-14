@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/format.dart';
+import '../../core/widgets/async_data_view.dart';
 import '../../core/theme/pesa_colors.dart';
 import '../../core/theme/pesa_icons.dart';
 import '../../core/theme/pesa_theme.dart';
@@ -13,26 +14,6 @@ import '../../core/widgets/row_icon_chip.dart';
 import '../../core/widgets/screen_header.dart';
 import '../home/bootstrap_provider.dart';
 import 'months_repository.dart';
-
-Widget _asyncBody<T>(
-  AsyncValue<T> value,
-  Future<void> Function() onRefresh,
-  Widget Function(T data) builder,
-) {
-  return RefreshIndicator(
-    onRefresh: onRefresh,
-    child: value.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ListView(
-        children: [
-          const SizedBox(height: 120),
-          Center(child: Text('Could not load data.\n$error', textAlign: TextAlign.center)),
-        ],
-      ),
-      data: builder,
-    ),
-  );
-}
 
 /// Ports `app/months/page.tsx`: every month with activity, newest first.
 class MonthsScreen extends ConsumerWidget {
@@ -45,10 +26,10 @@ class MonthsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Past months')),
-      body: _asyncBody(
-        months,
-        () => ref.refresh(monthsListProvider.future),
-        (rows) => ListView(
+      body: AsyncDataView(
+        value: months,
+        onRefresh: () => ref.refresh(monthsListProvider.future),
+        builder: (rows) => ListView(
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
           children: [
             const ScreenHeader(
@@ -109,10 +90,10 @@ class MonthDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(detail.value?.label ?? '')),
-      body: _asyncBody(
-        detail,
-        () => ref.refresh(monthDetailProvider(ym).future),
-        (d) => ListView(
+      body: AsyncDataView(
+        value: detail,
+        onRefresh: () => ref.refresh(monthDetailProvider(ym).future),
+        builder: (d) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           children: [
             Row(

@@ -22,10 +22,15 @@ class PotRepository {
     ),
   );
 
-  Future<void> disburse({required String bucketId, required int amount, String? note}) => _run(
+  Future<void> disburse({
+    required String bucketId,
+    required int amount,
+    String? note,
+    String? method,
+  }) => _run(
     () => _apiClient.dio.post<void>(
       '/api/mobile/transactions/disburse',
-      data: {'bucketId': bucketId, 'amount': amount, 'note': ?note},
+      data: {'bucketId': bucketId, 'amount': amount, 'note': ?note, 'method': ?method},
     ),
   );
 
@@ -57,9 +62,7 @@ class PotRepository {
     () => _apiClient.dio.post<void>(
       '/api/mobile/transactions/payday-template/apply',
       data: {
-        'drafts': drafts
-            .map((d) => {'bucketId': d.bucketId, 'amount': d.amount})
-            .toList(),
+        'drafts': drafts.map((d) => {'bucketId': d.bucketId, 'amount': d.amount}).toList(),
       },
     ),
   );

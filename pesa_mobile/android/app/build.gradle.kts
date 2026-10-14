@@ -1,11 +1,27 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing reads android/key.properties (gitignored, never commit it):
+//   storePassword=…
+//   keyPassword=…
+//   keyAlias=upload
+//   storeFile=/absolute/path/to/upload-keystore.jks
+// Without it, release builds fall back to the debug key so `flutter run
+// --release` still works locally — but such a build can't be uploaded to Play.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKey = keystorePropertiesFile.exists()
+if (hasReleaseKey) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
 android {
-    namespace = "com.example.pesa_mobile"
+    namespace = "com.edtmsys.pesa"
     // flutter_secure_storage requires compiling against SDK 37; this repo's
     // installed Android platform for "37" is exposed under the new
     // major.minor naming (android-37.0), symlinked to android-37 locally.
@@ -18,8 +34,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.pesa_mobile"
+        // Permanent store identity — never change after the first release.
+        applicationId = "com.edtmsys.pesa"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -32,11 +48,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("android/key.properties not found — release build is DEBUG-signed and can't be published.")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

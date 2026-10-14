@@ -38,10 +38,20 @@ export async function applyPaydayTemplateForUser(
       archivedAt: null,
       id: { in: drafts.map((d) => d.bucketId) },
     },
-    select: { id: true },
+    select: { id: true, target: true, allocated: true },
   })
-  const known = new Set(buckets.map((b) => b.id))
-  const valid = drafts.filter((d) => known.has(d.bucketId) && d.amount > 0)
+  // Replays never overfill: each pot gets at most what it still needs this
+  // month (last month's amount may exceed a since-lowered target, or the pot
+  // may already be partly funded). Fully-funded pots are skipped.
+  const room = new Map(buckets.map((b) => [b.id, Math.max(0, b.target - b.allocated)]))
+  const valid: ApplyDraft[] = []
+  for (const d of drafts) {
+    const left = room.get(d.bucketId) ?? 0
+    const amount = Math.min(d.amount, left)
+    if (amount <= 0) continue
+    room.set(d.bucketId, left - amount)
+    valid.push({ ...d, amount })
+  }
   if (valid.length === 0) return { applied: 0 }
 
   const total = valid.reduce((s, d) => s + d.amount, 0)

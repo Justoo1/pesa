@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
 import '../../core/models/user_profile.dart';
 import '../../core/theme/pesa_colors.dart';
@@ -22,18 +23,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(bootstrapProvider);
-    return RefreshIndicator(
+    return AsyncDataView(
+      value: bootstrap,
       onRefresh: () => ref.refresh(bootstrapProvider.future),
-      child: bootstrap.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => ListView(
-          children: [
-            const SizedBox(height: 120),
-            Center(child: Text('Could not load data.\n$error', textAlign: TextAlign.center)),
-          ],
-        ),
-        data: (data) => _SettingsBody(profile: data.profile),
-      ),
+      builder: (data) => _SettingsBody(profile: data.profile),
     );
   }
 }

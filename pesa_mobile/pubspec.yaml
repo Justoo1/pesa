@@ -41,6 +41,7 @@ dependencies:
   intl: ^0.20.3
   google_fonts: ^8.2.1
   lucide_icons_flutter: ^3.1.19
+  share_plus: ^13.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -53,6 +54,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -64,6 +67,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Bundled so the brand serif renders offline and on the very first frame
+  # (google_fonts uses these instead of fetching at runtime).
+  assets:
+    - assets/google_fonts/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -95,3 +103,23 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App icon + splash, generated from assets/branding/*.png (rendered from the
+# web app's pot logo, app/icon.svg). Regenerate after changing them with:
+#   dart run flutter_launcher_icons && dart run flutter_native_splash:create
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/icon.png
+  remove_alpha_ios: true
+  adaptive_icon_background: "#F4EBD9"
+  adaptive_icon_foreground: assets/branding/icon_foreground.png
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#F4EBD9"
+  image: assets/branding/splash.png
+  android_12:
+    color: "#F4EBD9"
+    image: assets/branding/splash.png
+  web: false

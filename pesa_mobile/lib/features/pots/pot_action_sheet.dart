@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/bucket.dart';
 import '../../core/widgets/amount_note_dialog.dart';
 import '../home/bootstrap_provider.dart';
+import 'disburse_flow.dart';
 import 'pot_actions_provider.dart';
 
 Future<void> showPotActionSheet({
@@ -26,7 +27,7 @@ Future<void> showPotActionSheet({
             title: const Text('Disburse into this pot'),
             onTap: () {
               Navigator.of(sheetContext).pop();
-              _runDisburse(context, bucket);
+              showDisburseFlow(context, bucket: bucket);
             },
           ),
           ListTile(
@@ -48,21 +49,6 @@ Future<void> showPotActionSheet({
         ],
       ),
     ),
-  );
-}
-
-Future<void> _runDisburse(BuildContext context, Bucket bucket) async {
-  final result = await showAmountNoteDialog(
-    context: context,
-    title: 'Disburse into ${bucket.name}',
-    submitLabel: 'Disburse',
-  );
-  if (result == null || !context.mounted) return;
-  await _run(
-    context,
-    (container) => container
-        .read(potRepositoryProvider)
-        .disburse(bucketId: bucket.id, amount: result.amount, note: result.note),
   );
 }
 

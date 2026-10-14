@@ -1,4 +1,4 @@
-package com.example.pesa_mobile
+package com.edtmsys.pesa
 
 import io.flutter.embedding.android.FlutterActivity
 

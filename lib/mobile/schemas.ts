@@ -1,5 +1,10 @@
 import { z } from "zod"
 
+// Money columns are Postgres `Int` (32-bit, max ~2.1e9). Capping each amount
+// well below that keeps single values and their sums from overflowing (which
+// would otherwise surface as a raw database error).
+export const MAX_AMOUNT = 100_000_000
+
 // Shared with app/actions/auth.ts registerUser so the web and mobile
 // registration flows validate identically.
 export const registerSchema = z.object({
@@ -42,7 +47,7 @@ export const bucketKindEnum = z.enum([
 
 export const createBucketSchema = z.object({
   name: z.string().min(1).max(40),
-  target: z.number().int().nonnegative(),
+  target: z.number().int().nonnegative().max(MAX_AMOUNT),
   color: bucketColorEnum,
   icon: z.string().min(1).max(20),
   kind: bucketKindEnum,
@@ -52,7 +57,7 @@ export const createBucketSchema = z.object({
 
 export const adjustBucketTargetSchema = z.object({
   bucketId: z.string().min(1),
-  delta: z.number().int(),
+  delta: z.number().int().min(-MAX_AMOUNT).max(MAX_AMOUNT),
 })
 
 export const archiveBucketSchema = z.object({ bucketId: z.string().min(1) })
@@ -60,7 +65,7 @@ export const archiveBucketSchema = z.object({ bucketId: z.string().min(1) })
 export const updateBucketSchema = z.object({
   bucketId: z.string().min(1),
   name: z.string().min(1).max(40),
-  target: z.number().int().positive(),
+  target: z.number().int().positive().max(MAX_AMOUNT),
   color: bucketColorEnum,
   icon: z.string().min(1).max(20),
   kind: bucketKindEnum,
@@ -76,7 +81,7 @@ export const reorderBucketsSchema = z.object({
 // on the bucket schemas above for why these can't live in that file).
 export const disburseSchema = z.object({
   bucketId: z.string().min(1),
-  amount: z.number().int().positive(),
+  amount: z.number().int().positive().max(MAX_AMOUNT),
   note: z.string().max(200).optional(),
   method: z.string().max(40).optional(),
   occurredAt: z.coerce.date().optional(),
@@ -87,7 +92,7 @@ export const disburseManySchema = z.object({
     .array(
       z.object({
         bucketId: z.string().min(1),
-        amount: z.number().int().positive(),
+        amount: z.number().int().positive().max(MAX_AMOUNT),
       }),
     )
     .min(1)
@@ -102,7 +107,7 @@ export const applyPaydayTemplateSchema = z.object({
     .array(
       z.object({
         bucketId: z.string().min(1),
-        amount: z.number().int().positive(),
+        amount: z.number().int().positive().max(MAX_AMOUNT),
         note: z.string().max(200).optional(),
         method: z.string().max(40).optional(),
       }),
@@ -113,7 +118,7 @@ export const applyPaydayTemplateSchema = z.object({
 
 export const spendSchema = z.object({
   bucketId: z.string().min(1),
-  amount: z.number().int().positive(),
+  amount: z.number().int().positive().max(MAX_AMOUNT),
   note: z.string().max(200).optional(),
   method: z.string().max(40).optional(),
   occurredAt: z.coerce.date().optional(),
@@ -123,7 +128,7 @@ export const bucketTransferSchema = z
   .object({
     fromBucketId: z.string().min(1),
     toBucketId: z.string().min(1),
-    amount: z.number().int().positive(),
+    amount: z.number().int().positive().max(MAX_AMOUNT),
     note: z.string().max(200).optional(),
   })
   .refine((d) => d.fromBucketId !== d.toBucketId, {
@@ -134,13 +139,13 @@ export const bucketTransferSchema = z
 // Shared with app/actions/bank.ts (also "use server").
 export const addFundsSchema = z.object({
   accountId: z.string().min(1),
-  amount: z.number().int().positive(),
+  amount: z.number().int().positive().max(MAX_AMOUNT),
   note: z.string().max(200).optional(),
 })
 
 export const spendFromBankSchema = z.object({
   accountId: z.string().min(1),
-  amount: z.number().int().positive(),
+  amount: z.number().int().positive().max(MAX_AMOUNT),
   note: z.string().max(200).optional(),
 })
 
@@ -160,7 +165,7 @@ export const bankTransferSchema = z
   .object({
     fromAccountId: z.string().min(1),
     toAccountId: z.string().min(1),
-    amount: z.number().int().positive(),
+    amount: z.number().int().positive().max(MAX_AMOUNT),
     note: z.string().max(200).optional(),
   })
   .refine((d) => d.fromAccountId !== d.toAccountId, {
@@ -172,7 +177,7 @@ export const bankTransferSchema = z
 
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(60),
-  targetAmount: z.number().int().positive(),
+  targetAmount: z.number().int().positive().max(MAX_AMOUNT),
   targetDate: z.coerce.date().optional(),
   icon: z.string().min(1).max(20).optional(),
 })
@@ -180,7 +185,7 @@ export const createProjectSchema = z.object({
 export const updateProjectSchema = z.object({
   projectId: z.string().min(1),
   name: z.string().min(1).max(60),
-  targetAmount: z.number().int().positive(),
+  targetAmount: z.number().int().positive().max(MAX_AMOUNT),
   targetDate: z.coerce.date().nullable().optional(),
   icon: z.string().min(1).max(20),
 })
@@ -191,7 +196,7 @@ export const createMilestoneSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(1).max(60),
   funDetail: z.string().max(140).optional(),
-  targetAmount: z.number().int().positive(),
+  targetAmount: z.number().int().positive().max(MAX_AMOUNT),
   targetDate: z.coerce.date().optional(),
   bucketId: z.string().min(1).optional(),
 })
@@ -200,7 +205,7 @@ export const updateMilestoneSchema = z.object({
   milestoneId: z.string().min(1),
   title: z.string().min(1).max(60),
   funDetail: z.string().max(140).optional(),
-  targetAmount: z.number().int().positive(),
+  targetAmount: z.number().int().positive().max(MAX_AMOUNT),
   targetDate: z.coerce.date().nullable().optional(),
   bucketId: z.string().min(1).nullable().optional(),
 })
@@ -209,7 +214,7 @@ export const archiveMilestoneSchema = z.object({ milestoneId: z.string().min(1) 
 
 export const fundMilestoneSchema = z.object({
   milestoneId: z.string().min(1),
-  amount: z.number().int().positive(),
+  amount: z.number().int().positive().max(MAX_AMOUNT),
   note: z.string().max(200).optional(),
 })
 
@@ -247,13 +252,13 @@ export const deleteAccountSchema = z.object({ confirmEmail: z.string().email() }
 
 export const createIncomeSourceSchema = z.object({
   name: z.string().min(1).max(40),
-  amount: z.number().int().nonnegative(),
+  amount: z.number().int().nonnegative().max(MAX_AMOUNT),
 })
 
 export const updateIncomeSourceSchema = z.object({
   incomeSourceId: z.string().min(1),
   name: z.string().min(1).max(40),
-  amount: z.number().int().nonnegative(),
+  amount: z.number().int().nonnegative().max(MAX_AMOUNT),
 })
 
 export const toggleIncomeSourceSchema = z.object({

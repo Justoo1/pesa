@@ -9,6 +9,7 @@ import { requireUserId } from "@/lib/session"
 import { sendPushToUser } from "@/lib/push"
 import { applyPaydayTemplateForUser } from "@/lib/payday"
 import { getPrimaryAccountId } from "@/lib/bank"
+import { fmtMoney } from "@/components/pesa/format"
 import {
   applyPaydayTemplateSchema,
   bucketTransferSchema,
@@ -34,7 +35,7 @@ export async function disburseCore(userId: string, input: z.infer<typeof disburs
 
   const [bucket, user, savingsBucket, primaryAccountId] = await Promise.all([
     prisma.bucket.findFirst({
-      where: { id: bucketId, userId },
+      where: { id: bucketId, userId, archivedAt: null },
       select: { id: true, name: true, target: true, allocated: true },
     }),
     prisma.user.findUnique({
@@ -43,54 +44,33 @@ export async function disburseCore(userId: string, input: z.infer<typeof disburs
         roundUpsEnabled: true,
         roundUpStep: true,
         pushBucketHitOn: true,
+        currency: true,
       },
     }),
     prisma.bucket.findFirst({
       where: { userId, kind: "future", archivedAt: null },
       orderBy: { priority: "asc" },
-      select: { id: true },
+      select: { id: true, target: true, allocated: true },
     }),
     getPrimaryAccountId(userId),
   ])
   if (!bucket) throw new Error("Bucket not found")
 
-  const ops: Prisma.PrismaPromise<unknown>[] = [
-    prisma.transaction.create({
-      data: {
-        userId,
-        bucketId,
-        amount,
-        note: note || "Top-up",
-        method: method || "MoMo",
-        ...(occurredAt ? { occurredAt } : {}),
-      },
-    }),
-  ]
+  // A pot can't be filled past its target this month. (Backdated entries
+  // don't touch the live tally, so they aren't capped.)
   if (inCurrentMonth) {
-    ops.push(
-      prisma.bucket.update({
-        where: { id: bucketId },
-        data: { allocated: { increment: amount } },
-      }),
-      prisma.bankAccount.update({
-        where: { id: primaryAccountId },
-        data: { balance: { decrement: amount } },
-      }),
-      prisma.bankTransaction.create({
-        data: {
-          userId,
-          accountId: primaryAccountId,
-          amount: -amount,
-          kind: "disburse",
-          note: `Sent to ${bucket.name}`,
-        },
-      }),
-    )
+    const room = Math.max(0, bucket.target - bucket.allocated)
+    if (room === 0) throw new Error(`${bucket.name} is already full`)
+    if (amount > room) {
+      throw new Error(
+        `${bucket.name} only needs ${fmtMoney(room, user?.currency)} more to fill`,
+      )
+    }
   }
 
   // Round-up: if enabled, route the rounding remainder to the first future-kind
   // pot (typically "Savings"). Skip when the target pot is the savings pot
-  // itself (can't round into yourself).
+  // itself (can't round into yourself), and never past Savings' own target.
   let roundUp = 0
   const step = user?.roundUpStep ?? 50
   if (
@@ -102,39 +82,76 @@ export async function disburseCore(userId: string, input: z.infer<typeof disburs
   ) {
     const remainder = amount % step
     roundUp = remainder === 0 ? 0 : step - remainder
-    if (roundUp > 0) {
-      ops.push(
-        prisma.transaction.create({
-          data: {
-            userId,
-            bucketId: savingsBucket.id,
-            amount: roundUp,
-            note: "Round-up",
-            method: method || "MoMo",
-          },
-        }),
-        prisma.bucket.update({
-          where: { id: savingsBucket.id },
-          data: { allocated: { increment: roundUp } },
-        }),
-        prisma.bankAccount.update({
-          where: { id: primaryAccountId },
-          data: { balance: { decrement: roundUp } },
-        }),
-        prisma.bankTransaction.create({
-          data: {
-            userId,
-            accountId: primaryAccountId,
-            amount: -roundUp,
-            kind: "disburse",
-            note: "Round-up",
-          },
-        }),
-      )
-    }
+    roundUp = Math.min(roundUp, Math.max(0, savingsBucket.target - savingsBucket.allocated))
   }
 
-  await prisma.$transaction(ops)
+  // Interactive transaction so the target check is atomic: each pot's
+  // allocation is claimed with a conditional UPDATE that only matches while
+  // there's still room, so two concurrent sends can't both overfill a pot.
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.create({
+      data: {
+        userId,
+        bucketId,
+        amount,
+        note: note || "Top-up",
+        method: method || "MoMo",
+        ...(occurredAt ? { occurredAt } : {}),
+      },
+    })
+    if (!inCurrentMonth) return
+
+    const claimed = await tx.$executeRaw`
+      UPDATE "Bucket" SET "allocated" = "allocated" + ${amount}
+      WHERE "id" = ${bucketId} AND "allocated" + ${amount} <= "target"`
+    if (claimed !== 1) throw new Error(`${bucket.name} doesn't have room for that any more`)
+    await tx.bankAccount.update({
+      where: { id: primaryAccountId },
+      data: { balance: { decrement: amount } },
+    })
+    await tx.bankTransaction.create({
+      data: {
+        userId,
+        accountId: primaryAccountId,
+        amount: -amount,
+        kind: "disburse",
+        note: `Sent to ${bucket.name}`,
+      },
+    })
+
+    if (roundUp > 0 && savingsBucket) {
+      const roundedIn = await tx.$executeRaw`
+        UPDATE "Bucket" SET "allocated" = "allocated" + ${roundUp}
+        WHERE "id" = ${savingsBucket.id} AND "allocated" + ${roundUp} <= "target"`
+      // Savings filled up concurrently: skip the round-up, keep the disbursement.
+      if (roundedIn !== 1) {
+        roundUp = 0
+        return
+      }
+      await tx.transaction.create({
+        data: {
+          userId,
+          bucketId: savingsBucket.id,
+          amount: roundUp,
+          note: "Round-up",
+          method: method || "MoMo",
+        },
+      })
+      await tx.bankAccount.update({
+        where: { id: primaryAccountId },
+        data: { balance: { decrement: roundUp } },
+      })
+      await tx.bankTransaction.create({
+        data: {
+          userId,
+          accountId: primaryAccountId,
+          amount: -roundUp,
+          kind: "disburse",
+          note: "Round-up",
+        },
+      })
+    }
+  })
 
   // Bucket target reached: fire push if we crossed from below-target to
   // at-or-above-target on this disbursement. Only current-month disbursements
@@ -188,11 +205,29 @@ export async function disburseManyCore(
   // Keep only entries for pots this user actually owns.
   const owned = await prisma.bucket.findMany({
     where: { userId, archivedAt: null, id: { in: entries.map((e) => e.bucketId) } },
-    select: { id: true },
+    select: { id: true, name: true, target: true, allocated: true },
   })
-  const ownedIds = new Set(owned.map((b) => b.id))
-  const valid = entries.filter((e) => ownedIds.has(e.bucketId))
+  const ownedById = new Map(owned.map((b) => [b.id, b]))
+  const valid = entries.filter((e) => ownedById.has(e.bucketId))
   if (valid.length === 0) throw new Error("No valid pots")
+
+  // Same rule as a single disbursement: no pot past its target this month.
+  if (inCurrentMonth) {
+    const perPot = new Map<string, number>()
+    for (const e of valid) perPot.set(e.bucketId, (perPot.get(e.bucketId) ?? 0) + e.amount)
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } })
+    for (const [id, total] of perPot) {
+      const b = ownedById.get(id)!
+      if (b.allocated + total > b.target) {
+        const room = Math.max(0, b.target - b.allocated)
+        throw new Error(
+          room === 0
+            ? `${b.name} is already full`
+            : `${b.name} only needs ${fmtMoney(room, user?.currency)} more to fill`,
+        )
+      }
+    }
+  }
 
   const ops: Prisma.PrismaPromise<unknown>[] = []
   for (const e of valid) {
@@ -315,13 +350,20 @@ export async function transferCore(userId: string, input: z.infer<typeof bucketT
     }),
     prisma.bucket.findFirst({
       where: { id: toBucketId, userId, archivedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, target: true, allocated: true },
     }),
   ])
   if (!from || !to) throw new Error("Pot not found")
   const available = from.allocated - from.spent
   if (available < amount) {
     throw new Error(`Only ${available} in ${from.name} to move`)
+  }
+  // The receiving pot can't be pushed past its target either.
+  const room = Math.max(0, to.target - to.allocated)
+  if (amount > room) {
+    throw new Error(
+      room === 0 ? `${to.name} is already full` : `${to.name} only has room for ${room} more`,
+    )
   }
 
   const transferId = randomUUID()

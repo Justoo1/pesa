@@ -8,6 +8,8 @@ import 'package:pesa_mobile/app.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
+import 'helpers/disburse.dart';
+
 /// Phase 4.2 acceptance against the live dev server: after one disbursement,
 /// the Insights tab reflects it (from bootstrap data) and the Months history
 /// screens (from `/api/mobile/months` + `/months/:ym`) list and drill into it.
@@ -35,9 +37,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Disburse into this pot'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '500');
-    await tester.tap(find.widgetWithText(FilledButton, 'Disburse'));
-    await tester.pumpAndSettle(const Duration(seconds: 15));
+    await disburseOnKeypad(tester, '500');
 
     // --- Insights tab ---
     await tester.tap(
@@ -48,7 +48,12 @@ void main() {
 
     final insightsList = find.byKey(const Key('insights-list'));
     await _scrollUntilFound(tester, insightsList, find.text('Where it went'));
-    await _scrollUntilFound(tester, insightsList, find.text('Past months'), delta: const Offset(0, -200));
+    await _scrollUntilFound(
+      tester,
+      insightsList,
+      find.text('Past months'),
+      delta: const Offset(0, -200),
+    );
     // "Where it went" lists Rent with the amount disbursed this month.
     expect(find.text('GH₵500'), findsWidgets);
 

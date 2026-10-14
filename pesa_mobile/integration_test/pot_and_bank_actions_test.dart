@@ -7,6 +7,8 @@ import 'package:pesa_mobile/app.dart';
 import 'package:pesa_mobile/core/token_storage.dart';
 import 'package:pesa_mobile/core/widgets/pesa_bottom_nav.dart';
 
+import 'helpers/disburse.dart';
+
 /// Exercises Phase 3's core-write flows end-to-end against the live dev
 /// server: create a pot, disburse into it, spend from it, transfer to
 /// another pot, add a second bank account, and transfer between accounts —
@@ -58,9 +60,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Disburse into this pot'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '500');
-    await tester.tap(find.widgetWithText(FilledButton, 'Disburse'));
-    await tester.pumpAndSettle(const Duration(seconds: 15));
+    await disburseOnKeypad(tester, '500');
 
     expect(find.textContaining('500 / GH₵3,500'), findsOneWidget);
 

@@ -10,6 +10,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "smoke:mobile": "node scripts/mobile-api-smoke.mjs",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"

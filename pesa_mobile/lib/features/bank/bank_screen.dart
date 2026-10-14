@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
 import '../../core/models/bank_account.dart';
 import '../../core/models/home_data.dart';
@@ -12,6 +13,7 @@ import '../../core/theme/pesa_colors.dart';
 import '../../core/theme/pesa_icons.dart';
 import '../../core/theme/pesa_metrics.dart';
 import '../../core/theme/pesa_theme.dart';
+import '../../core/widgets/decor_rings.dart';
 import '../../core/widgets/mini_stat.dart';
 import '../../core/widgets/pesa_card.dart';
 import '../../core/widgets/screen_header.dart';
@@ -28,18 +30,10 @@ class BankScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(bootstrapProvider);
 
-    return RefreshIndicator(
+    return AsyncDataView(
+      value: bootstrap,
       onRefresh: () => ref.refresh(bootstrapProvider.future),
-      child: bootstrap.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => ListView(
-          children: [
-            const SizedBox(height: 120),
-            Center(child: Text('Could not load data.\n$error', textAlign: TextAlign.center)),
-          ],
-        ),
-        data: (data) => _BankBody(data: data),
-      ),
+      builder: (data) => _BankBody(data: data),
     );
   }
 }
@@ -274,7 +268,7 @@ class _BalanceHero extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            const Positioned(right: -40, top: -50, child: _Rings()),
+            const Positioned(right: -40, top: -50, child: DecorRings(color: PesaColors.bankMist)),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -350,34 +344,4 @@ class _BalanceHero extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The decorative concentric circles in the card's top-right corner.
-class _Rings extends StatelessWidget {
-  const _Rings();
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: 0.18,
-      child: SizedBox(width: 180, height: 180, child: CustomPaint(painter: _RingsPainter())),
-    );
-  }
-}
-
-class _RingsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final stroke = Paint()
-      ..color = PesaColors.bankMist
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    canvas.drawCircle(center, 80, stroke);
-    canvas.drawCircle(center, 56, stroke);
-    canvas.drawCircle(center, 32, Paint()..color = PesaColors.bankMist.withValues(alpha: 0.6));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

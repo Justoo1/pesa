@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
 import '../../core/models/home_data.dart';
 import '../../core/models/month_row.dart';
@@ -30,18 +31,10 @@ class InsightsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(bootstrapProvider);
-    return RefreshIndicator(
+    return AsyncDataView(
+      value: bootstrap,
       onRefresh: () => ref.refresh(bootstrapProvider.future),
-      child: bootstrap.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => ListView(
-          children: [
-            const SizedBox(height: 120),
-            Center(child: Text('Could not load data.\n$error', textAlign: TextAlign.center)),
-          ],
-        ),
-        data: (data) => _InsightsBody(data: data),
-      ),
+      builder: (data) => _InsightsBody(data: data),
     );
   }
 }

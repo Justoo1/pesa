@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
 import '../../core/models/milestone.dart';
 import '../../core/models/project.dart';
@@ -26,60 +27,52 @@ class ProjectsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(bootstrapProvider);
-    return RefreshIndicator(
+    return AsyncDataView(
+      value: bootstrap,
       onRefresh: () => ref.refresh(bootstrapProvider.future),
-      child: bootstrap.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => ListView(
+      builder: (data) {
+        final currency = data.profile.currency;
+        return ListView(
+          key: const Key('projects-list'),
+          padding: const EdgeInsets.only(bottom: 28),
           children: [
-            const SizedBox(height: 120),
-            Center(child: Text('Could not load data.\n$error', textAlign: TextAlign.center)),
-          ],
-        ),
-        data: (data) {
-          final currency = data.profile.currency;
-          return ListView(
-            key: const Key('projects-list'),
-            padding: const EdgeInsets.only(bottom: 28),
-            children: [
-              const ScreenHeader(eyebrow: 'Projects', title: 'Your', italic: 'savings journey.'),
-              const SizedBox(height: 12),
-              if (data.projects.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: PesaCard(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'Set a big goal — a house, a car, anything worth a roadmap — and break it into fundable milestones.',
-                      textAlign: TextAlign.center,
-                    ),
+            const ScreenHeader(eyebrow: 'Projects', title: 'Your', italic: 'savings journey.'),
+            const SizedBox(height: 12),
+            if (data.projects.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: PesaCard(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Set a big goal — a house, a car, anything worth a roadmap — and break it into fundable milestones.',
+                    textAlign: TextAlign.center,
                   ),
-                )
-              else
-                for (final p in data.projects)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                    child: _ProjectCard(
-                      project: p,
-                      milestones: data.milestones.where((m) => m.projectId == p.id).toList(),
-                      currency: currency,
-                      onTap: () => context.push('/projects/${p.id}'),
-                    ),
-                  ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: PesaButton(
-                  label: 'New project',
-                  icon: LucideIcons.plus,
-                  variant: PesaButtonVariant.soft,
-                  expand: true,
-                  onPressed: () => _newProject(context, ref),
                 ),
+              )
+            else
+              for (final p in data.projects)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: _ProjectCard(
+                    project: p,
+                    milestones: data.milestones.where((m) => m.projectId == p.id).toList(),
+                    currency: currency,
+                    onTap: () => context.push('/projects/${p.id}'),
+                  ),
+                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: PesaButton(
+                label: 'New project',
+                icon: LucideIcons.plus,
+                variant: PesaButtonVariant.soft,
+                expand: true,
+                onPressed: () => _newProject(context, ref),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 

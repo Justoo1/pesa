@@ -53,6 +53,8 @@ function DisburseFlowContent({
   const bucket = state.buckets.find((b) => b.id === bucketId) || null
   const remaining = state.salary - state.buckets.reduce((s, b) => s + b.allocated, 0)
   const stillNeeds = bucket ? Math.max(0, bucket.target - bucket.allocated) : 0
+  // A pot can't be filled past its target (the server enforces this too).
+  const overLimit = amount > stillNeeds
 
   const press = (k: string) => {
     setAmount((prev) => {
@@ -152,7 +154,10 @@ function DisburseFlowContent({
               return (
                 <button
                   key={b.id}
+                  disabled={done}
+                  aria-disabled={done}
                   onClick={() => {
+                    if (done) return
                     setBucketId(b.id)
                     setAmount(Math.max(0, b.target - b.allocated))
                     setStep("amount")
@@ -166,7 +171,7 @@ function DisburseFlowContent({
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
-                    cursor: "pointer",
+                    cursor: done ? "default" : "pointer",
                     opacity: done ? 0.55 : 1,
                   }}
                 >
@@ -235,8 +240,8 @@ function DisburseFlowContent({
               </span>
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
-              {[stillNeeds || 100, 500, 1000]
-                .filter((v, i, a) => v > 0 && a.indexOf(v) === i)
+              {[stillNeeds, 500, 1000]
+                .filter((v, i, a) => v > 0 && v <= stillNeeds && a.indexOf(v) === i)
                 .map((v) => (
                   <button key={v} className="chip" onClick={() => setAmount(v)}>
                     {v === stillNeeds && stillNeeds > 0
@@ -246,6 +251,16 @@ function DisburseFlowContent({
                 ))}
             </div>
           </div>
+
+          {overLimit && (
+            <div
+              className="tiny"
+              role="alert"
+              style={{ textAlign: "center", color: "var(--clay-deep)", fontWeight: 600 }}
+            >
+              Only {fmtMoney(stillNeeds, currency)} needed to fill {bucket.name}
+            </div>
+          )}
 
           <div className="keypad" style={{ marginTop: 8 }}>
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "back"].map((k) => (
@@ -257,7 +272,7 @@ function DisburseFlowContent({
           <button
             className="btn btn-green btn-block"
             style={{ marginTop: 10 }}
-            disabled={amount <= 0}
+            disabled={amount <= 0 || overLimit}
             onClick={() => setStep("confirm")}
           >
             Review <Icon name="chevron" size={16} />
