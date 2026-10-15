@@ -37,9 +37,11 @@ void main() {
     // Disburse 1,200 into Savings (a "future" pot → counts as Saved).
     await tester.tap(find.text('Savings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Disburse into this pot'));
+    await tester.tap(find.text('Top up')); // pot detail screen
     await tester.pumpAndSettle();
     await disburseOnKeypad(tester, '1200');
+    await tester.pageBack(); // back to Home
+    await tester.pumpAndSettle();
 
     await tester.tap(find.descendant(of: find.byType(PesaBottomNav), matching: find.text('WRAP')));
     await tester.pumpAndSettle(); // lets the count-up and reveals finish

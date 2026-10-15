@@ -21,7 +21,6 @@ import '../bank/bank_screen.dart';
 import '../help/help_and_tour.dart';
 import '../insights/insights_screen.dart';
 import '../pots/disburse_flow.dart';
-import '../pots/pot_action_sheet.dart';
 import '../pots/pot_actions_provider.dart';
 import '../pots/pot_editor_sheet.dart';
 import '../projects/projects_screen.dart';
@@ -278,8 +277,7 @@ class _HomeTab extends ConsumerWidget {
                     return PotGridTile(
                       bucket: bucket,
                       currency: currency,
-                      onTap: () =>
-                          showPotActionSheet(context: context, bucket: bucket, allBuckets: buckets),
+                      onTap: () => context.push('/pots/${bucket.id}'),
                     );
                   }, childCount: buckets.length),
                 ),

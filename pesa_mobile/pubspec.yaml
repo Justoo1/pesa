@@ -45,6 +45,8 @@ dependencies:
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
   shared_preferences: ^2.5.6
+  url_launcher: 6.3.2
+  package_info_plus: 10.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -56,6 +58,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   integration_test:
+    sdk: flutter
+  flutter_driver: # store screenshots (test_driver/screenshot_driver.dart)
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.8

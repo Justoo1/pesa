@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1030562247604",
+    "project_id": "pesa-9de63",
+    "storage_bucket": "pesa-9de63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030562247604:android:b0303b48903c87e15078e1",
+        "android_client_info": {
+          "package_name": "com.edtmsys.pesa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsXEdvQxSk_F_1UTpF3OOD0xOFbv_-rEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

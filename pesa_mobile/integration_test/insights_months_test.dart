@@ -37,9 +37,11 @@ void main() {
     // --- Disburse 500 into Rent (an "essential" pot → counts as Lived) ---
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Disburse into this pot'));
+    await tester.tap(find.text('Top up')); // pot detail screen
     await tester.pumpAndSettle();
     await disburseOnKeypad(tester, '500');
+    await tester.pageBack(); // back to Home
+    await tester.pumpAndSettle();
 
     // --- Insights tab ---
     await tester.tap(

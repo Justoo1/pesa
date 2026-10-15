@@ -82,18 +82,16 @@ ThemeData buildPesaTheme() {
       )
       .apply(bodyColor: PesaColors.ink, displayColor: PesaColors.ink);
 
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: PesaColors.green,
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: PesaColors.green,
-    onPrimary: PesaColors.bgApp,
-    secondary: PesaColors.clay,
-    onSecondary: PesaColors.bgApp,
-    surface: PesaColors.bgCard,
-    onSurface: PesaColors.ink,
-    error: const Color(0xFFB3261E),
-  );
+  final colorScheme =
+      ColorScheme.fromSeed(seedColor: PesaColors.green, brightness: Brightness.light).copyWith(
+        primary: PesaColors.green,
+        onPrimary: PesaColors.bgApp,
+        secondary: PesaColors.clay,
+        onSecondary: PesaColors.bgApp,
+        surface: PesaColors.bgCard,
+        onSurface: PesaColors.ink,
+        error: const Color(0xFFB3261E),
+      );
 
   return ThemeData(
     useMaterial3: true,

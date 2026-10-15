@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/links.dart';
 import 'auth_header.dart';
 import 'auth_provider.dart';
 
@@ -95,7 +96,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       )
                     : const Text('Create account'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+              const _AgreeNotice(),
+              const SizedBox(height: 4),
               TextButton(
                 onPressed: () => context.go('/login'),
                 child: const Text('Already have an account? Sign in'),
@@ -104,6 +107,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "By creating an account you agree to the Terms and Privacy Policy."
+class _AgreeNotice extends StatelessWidget {
+  const _AgreeNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).textTheme.bodySmall;
+    Widget link(String label, Uri uri) => InkWell(
+      onTap: () => openLink(context, uri),
+      child: Text(
+        label,
+        style: muted?.copyWith(decoration: TextDecoration.underline, fontWeight: FontWeight.w600),
+      ),
+    );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('By creating an account you agree to the ', style: muted),
+        link('Terms', PesaLinks.terms),
+        Text(' and ', style: muted),
+        link('Privacy Policy', PesaLinks.privacy),
+        Text('.', style: muted),
+      ],
     );
   }
 }

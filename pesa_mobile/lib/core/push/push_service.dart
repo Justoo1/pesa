@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
@@ -66,6 +67,9 @@ class PushService {
 
   static Future<void> _register(ApiClient api) async {
     final token = await FirebaseMessaging.instance.getToken();
+    // Debug builds only: paste this into Firebase console → Messaging →
+    // "Send test message" to check delivery (docs/FIREBASE_SETUP.md).
+    if (kDebugMode) debugPrint('[push] FCM token: $token');
     if (token != null) await _post(api, token);
     _tokenRefresh ??= FirebaseMessaging.instance.onTokenRefresh.listen((t) => _post(api, t));
   }

@@ -18,10 +18,5 @@ class IncomeSource {
   final int amount;
   final bool active;
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'amount': amount,
-    'active': active,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'amount': amount, 'active': active};
 }

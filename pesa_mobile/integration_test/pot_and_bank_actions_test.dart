@@ -64,20 +64,29 @@ void main() {
     // --- Disburse into Rent ---
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Disburse into this pot'));
+    expect(find.text('POT · ESSENTIAL'), findsOneWidget, reason: 'pot detail screen');
+    await tester.tap(find.text('Top up'));
     await tester.pumpAndSettle();
     await disburseOnKeypad(tester, '500');
+    expect(find.text('This month'), findsOneWidget);
+    expect(find.text('1 entry'), findsOneWidget, reason: 'the top-up is in the pot ledger');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('500 / GH₵3,500'), findsOneWidget);
 
     // --- Spend from Rent ---
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Spend from this pot'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Spend'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '200');
-    await tester.tap(find.widgetWithText(FilledButton, 'Spend'));
+    // The dialog's own "Spend" button sits on top of the detail screen's.
+    await tester.tap(find.widgetWithText(FilledButton, 'Spend').last);
     await tester.pumpAndSettle(const Duration(seconds: 15));
+    expect(find.text('SPENT'), findsOneWidget, reason: 'In / Spent / Left appear once spent');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // Rent tile now reads "GH₵300 left of GH₵500" (web BucketCard parity).
     expect(find.textContaining('GH₵300 left of GH₵500'), findsOneWidget);
@@ -85,7 +94,7 @@ void main() {
     // --- Transfer Rent -> Savings ---
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Transfer to another pot'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Move'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
@@ -94,6 +103,8 @@ void main() {
     await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '100');
     await tester.tap(find.widgetWithText(FilledButton, 'Transfer'));
     await tester.pumpAndSettle(const Duration(seconds: 15));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // Rent: 500 - 200 spent (doesn't touch allocated) - 100 transferred = 400 allocated.
     expect(find.textContaining('GH₵200 left of GH₵400'), findsOneWidget);

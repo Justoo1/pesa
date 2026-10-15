@@ -214,7 +214,14 @@ export async function deleteAccountCore(userId: string, input: z.infer<typeof de
   if (!user?.email || user.email.toLowerCase() !== confirmEmail.toLowerCase()) {
     return { ok: false as const, error: "Email did not match." }
   }
-  await prisma.user.delete({ where: { id: userId } })
+  // The user row cascades to everything linked by id; sign-in codes and
+  // magic-link tokens are keyed by email, so clear those too.
+  const email = user.email.toLowerCase()
+  await prisma.$transaction([
+    prisma.mobileLoginCode.deleteMany({ where: { email } }),
+    prisma.verificationToken.deleteMany({ where: { identifier: email } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ])
   return { ok: true as const }
 }
 

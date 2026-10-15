@@ -57,6 +57,23 @@ export function AboutSheet({
 
         <div className="card" style={{ padding: 14 }}>
           <div className="tiny" style={{ fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Policies &amp; help
+          </div>
+          <div className="body" style={{ marginTop: 6, display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {[
+              ["/privacy", "Privacy policy"],
+              ["/terms", "Terms of use"],
+              ["/support", "Support"],
+            ].map(([href, label]) => (
+              <a key={href} href={href} target="_blank" rel="noopener" style={{ textDecoration: "underline" }}>
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 14 }}>
+          <div className="tiny" style={{ fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Built with
           </div>
           <div className="body" style={{ marginTop: 6 }}>

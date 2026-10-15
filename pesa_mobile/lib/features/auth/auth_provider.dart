@@ -81,9 +81,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   Future<void> verifyLoginCode({required String email, required String code}) async {
     state = const AsyncLoading();
     final result = await AsyncValue.guard(() async {
-      final user = await ref
-          .read(authRepositoryProvider)
-          .verifyLoginCode(email: email, code: code);
+      final user = await ref.read(authRepositoryProvider).verifyLoginCode(email: email, code: code);
       return AuthAuthenticated(user: user);
     });
     if (!ref.mounted) return;
@@ -101,6 +99,4 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 }
 
-final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(
-  AuthController.new,
-);
+final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(AuthController.new);

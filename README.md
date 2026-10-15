@@ -10,21 +10,24 @@ Mobile-first budgeting app: move your salary into pots, watch each one fill. Bui
 - Auth.js v5 — Google OAuth, email magic link (Resend), email + password
 - Tailwind v4 (mostly unused — design uses raw CSS in `app/globals.css`)
 
-## Setup
+## Local development
+
+Development runs against its **own local Postgres**, never the production database.
 
 ```bash
 npm install
-cp .env.example .env.local
-# fill in DATABASE_URL / DIRECT_URL / AUTH_* values
-npx prisma migrate dev --name init
-npm run dev
+cp .env.example .env        # then fill in the AUTH_* values
+npm run db:dev              # terminal 1: local Postgres 17 on :5433, applies migrations
+npm run dev                 # terminal 2: http://localhost:3000
 ```
 
-### Database (Neon via Vercel)
+- `npm run db:dev` uses the `embedded-postgres` package, so you don't need Docker or a Postgres install. Data lives in `.devdb/` (gitignored). The first run downloads Postgres and initialises it, and every run applies new migrations.
+- `npm run db:dev:reset` wipes the local data and starts fresh.
+- Sign up in the app to get an account. New accounts are seeded with starter pots.
+- `.env` sets `RATE_LIMITS_DISABLED=1` locally, so test runs aren't throttled. Production ignores it.
+- The production Neon credentials are kept in `.env.neon.local` (gitignored) for reference only. Don't point `.env` at them.
 
-1. In the Vercel dashboard for the project: **Storage → Create Database → Neon**.
-2. Vercel auto-injects `DATABASE_URL` (pooled) and `DIRECT_URL` (direct) into the project's env.
-3. Locally, run `vercel env pull .env.local` to mirror them.
+Production deployment, environment variables and migrations: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Auth providers
 
@@ -39,9 +42,19 @@ npm run dev         # Next dev (Turbopack)
 npm run build       # prisma migrate deploy && next build
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm run db:migrate  # prisma migrate dev
+npm run db:dev      # local dev Postgres (keep running)
+npm run db:migrate  # create a migration (prisma migrate dev, against the local DB)
 npm run db:studio   # browse the DB in Prisma Studio
+npm run smoke:mobile    # mobile API smoke test (BASE_URL overridable)
+npm run check:release   # pre-release checks (see docs/DEPLOY.md)
 ```
+
+## Docs
+
+- [docs/DEPLOY.md](docs/DEPLOY.md): production on Vercel + Neon, env vars, migrations, rollback
+- [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md): turning on phone push notifications
+- [docs/store/](docs/store/): Google Play and App Store submission, listing copy, privacy forms
+- [pesa_mobile/README.md](pesa_mobile/README.md): the Flutter app (run, test, release builds)
 
 ## Project layout
 

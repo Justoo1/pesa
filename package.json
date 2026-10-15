@@ -11,8 +11,11 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "smoke:mobile": "node scripts/mobile-api-smoke.mjs",
+    "check:release": "node scripts/check-release.mjs",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:dev": "node scripts/dev-db.mjs",
+    "db:dev:reset": "node scripts/dev-db.mjs --reset",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -44,6 +47,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "embedded-postgres": "17.10.0-beta.17",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.4.0",
     "postcss": "^8",

@@ -44,20 +44,26 @@ const _defaultIconByKind = {
 /// Create a pot ([bucket] null) or edit one — the web's NewPot / EditPot
 /// sheets: name, monthly target, icon, color, kind, bills due day,
 /// carry-over, and (editing) archive.
-Future<void> showPotEditorSheet(BuildContext context, {Bucket? bucket}) {
+Future<void> showPotEditorSheet(BuildContext context, {Bucket? bucket, bool focusTarget = false}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: PesaColors.bgApp,
-    builder: (_) => FractionallySizedBox(heightFactor: 0.92, child: _PotEditor(bucket: bucket)),
+    builder: (_) => FractionallySizedBox(
+      heightFactor: 0.92,
+      child: _PotEditor(bucket: bucket, focusTarget: focusTarget),
+    ),
   );
 }
 
 class _PotEditor extends ConsumerStatefulWidget {
-  const _PotEditor({this.bucket});
+  const _PotEditor({this.bucket, this.focusTarget = false});
 
   final Bucket? bucket;
+
+  /// Opened from "Adjust target": put the cursor in the target field.
+  final bool focusTarget;
 
   @override
   ConsumerState<_PotEditor> createState() => _PotEditorState();
@@ -206,6 +212,7 @@ class _PotEditorState extends ConsumerState<_PotEditor> {
           const SizedBox(height: 12),
           TextFormField(
             controller: _target,
+            autofocus: widget.focusTarget,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: const InputDecoration(labelText: 'Target', helperText: 'Monthly target'),

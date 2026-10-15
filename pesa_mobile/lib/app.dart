@@ -18,6 +18,7 @@ class PesaApp extends ConsumerWidget {
     if (authState.isLoading && !authState.hasValue) {
       return MaterialApp(
         title: 'Pesa',
+        debugShowCheckedModeBanner: false,
         theme: _theme,
         home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
@@ -25,6 +26,7 @@ class PesaApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Pesa',
+      debugShowCheckedModeBanner: false,
       theme: _theme,
       scaffoldMessengerKey: PushService.messengerKey,
       routerConfig: ref.watch(routerProvider),

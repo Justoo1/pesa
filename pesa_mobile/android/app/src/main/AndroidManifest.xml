@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declared here, not left to plugins: release builds can't reach the API without it. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- allowBackup off: a finance app shouldn't copy its data to cloud backups,
+         and restored flutter_secure_storage keys can't be decrypted anyway. -->
     <application
         android:label="Pesa"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -37,6 +45,11 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- url_launcher: open the privacy / terms / support pages in a browser. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

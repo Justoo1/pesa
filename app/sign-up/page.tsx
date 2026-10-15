@@ -9,6 +9,17 @@ export default function SignUpPage() {
       subtitle="Create an account and we'll seed you with a sensible set of pots to begin."
     >
       <SignUpForm />
+      <p className="tiny" style={{ textAlign: "center", marginTop: 12 }}>
+        By creating an account you agree to the{" "}
+        <Link href="/terms" style={{ textDecoration: "underline" }}>
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" style={{ textDecoration: "underline" }}>
+          Privacy Policy
+        </Link>
+        .
+      </p>
       <div
         className="small"
         style={{ textAlign: "center", marginTop: 18, color: "var(--ink-3)" }}

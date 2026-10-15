@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
+import '../../core/links.dart';
 import '../../core/push/push_service.dart';
 import '../../core/models/user_profile.dart';
 import '../../core/theme/pesa_colors.dart';
@@ -147,6 +149,25 @@ class _SettingsBody extends ConsumerWidget {
         _Group(
           children: [
             _Row(
+              icon: LucideIcons.shieldCheck,
+              label: 'Privacy policy',
+              onTap: () => openLink(context, PesaLinks.privacy),
+            ),
+            _Row(
+              icon: LucideIcons.fileText,
+              label: 'Terms of use',
+              onTap: () => openLink(context, PesaLinks.terms),
+            ),
+            _Row(
+              icon: LucideIcons.lifeBuoy,
+              label: 'Support & contact',
+              onTap: () => openLink(context, PesaLinks.support),
+            ),
+          ],
+        ),
+        _Group(
+          children: [
+            _Row(
               icon: LucideIcons.rotateCcw,
               label: 'Reset this month',
               danger: true,
@@ -169,6 +190,7 @@ class _SettingsBody extends ConsumerWidget {
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),
           ),
         ),
+        const _VersionFooter(),
       ],
     );
   }
@@ -483,6 +505,29 @@ class _Row extends StatelessWidget {
         ],
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// "Pesa 1.0.0 (1)" — support asks for it, and reviewers look for it.
+class _VersionFooter extends StatelessWidget {
+  const _VersionFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Text(
+            info == null ? '' : 'Pesa ${info.version} (${info.buildNumber})',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: PesaColors.ink3),
+          ),
+        );
+      },
     );
   }
 }

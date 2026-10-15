@@ -12,9 +12,9 @@ Flutter client for Pesa. It talks to the Next.js app's mobile REST API
 
 ## Run locally
 
-1. Start the backend from the repo root: `npm install`, set up `.env`, then
-   `npm run dev`. `.env` needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
-   `AUTH_SECRET` and `MOBILE_JWT_SECRET`.
+1. Start the backend from the repo root: `npm install`, set up `.env` (copy
+   `.env.example`), then run `npm run db:dev` (local Postgres) and `npm run dev`
+   in two terminals. See the root README's "Local development".
 2. Run the app from this folder, passing the backend URL as the target sees it:
 
 | Target | Command |
@@ -90,6 +90,11 @@ These need a Mac with Xcode.
   the team. Automatic signing creates the profiles.
 - Create the app in App Store Connect with the same bundle id, then run
   `flutter build ipa …` and upload with Xcode Organizer or Transporter.
+- The privacy manifest, push entitlement, export-compliance flag and
+  iPhone-only/portrait settings are already in the project. The full
+  submission walkthrough, with App Privacy answers and review notes, is in
+  [docs/store/APP_STORE.md](../docs/store/APP_STORE.md). Google Play's is in
+  [docs/store/PLAY_STORE.md](../docs/store/PLAY_STORE.md).
 
 ### Versioning
 
@@ -99,30 +104,11 @@ build number) for every store upload.
 ## Push notifications (Firebase)
 
 Phone push is built in but **off until you add Firebase**. Without the config
-the app runs normally, and Settings → Push notifications shows "Not set up".
+the app runs normally, and More → Push notifications shows "Not set up".
 
-1. Create a Firebase project at <https://console.firebase.google.com>.
-2. Add an **Android app** with package name `com.edtmsys.pesa`, download
-   `google-services.json`, and save it as `pesa_mobile/android/app/google-services.json`.
-   The Gradle build applies the Google Services plugin only when this file exists.
-3. Add an **iOS app** with bundle id `com.edtmsys.pesa` (this needs a Mac):
-   - Download `GoogleService-Info.plist` and add it to `ios/Runner` in Xcode.
-   - Upload an APNs auth key under Project settings → Cloud Messaging.
-   - Enable the Push Notifications and Background Modes → Remote notifications
-     capabilities.
-4. Set up the server:
-   - Project settings → Service accounts → **Generate new private key**.
-   - Put that JSON (raw, or base64-encoded) in the server env var
-     `FCM_SERVICE_ACCOUNT`, then redeploy.
-   - `lib/fcm.ts` sends through the FCM HTTP v1 API, and removes tokens FCM
-     reports as gone.
-5. Rebuild the app. In Settings → Push notifications, turning on any
-   notification asks for permission and registers the phone. Signing out
-   unregisters it.
-
-The same crons that send web push (`app/api/cron/*`) send phone push. Each
-notification type follows the user's settings for payday, pot full, monthly
-wrap and bills due.
+Setup (Firebase project, Android + iOS config files, APNs key, the server's
+`FCM_SERVICE_ACCOUNT`) and how to test delivery are in
+[docs/FIREBASE_SETUP.md](../docs/FIREBASE_SETUP.md).
 
 ## Branding
 

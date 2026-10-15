@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { prisma } from "@/lib/db"
 
 /** Thrown when a caller has used up a rate-limit window. */
@@ -9,6 +10,14 @@ export class RateLimitError extends Error {
     super(message)
     this.name = "RateLimitError"
   }
+}
+
+/**
+ * Keys name an email or IP address ("login:email:a@b.c"); only a SHA-256 of
+ * the key is stored, so the table never holds personal data in the clear.
+ */
+function storedKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex")
 }
 
 /**
@@ -26,9 +35,13 @@ export async function hitRateLimit(
   if (process.env.NODE_ENV !== "production" && process.env.RATE_LIMITS_DISABLED === "1") {
     return { allowed: true, retryAfterSeconds: 0 }
   }
+  // Opportunistic cleanup: windows that ended a day ago are just dead rows.
+  if (Math.random() < 0.01) {
+    await prisma.$executeRaw`DELETE FROM "RateLimit" WHERE "resetAt" < NOW() - INTERVAL '1 day'`
+  }
   const [row] = await prisma.$queryRaw<{ count: number; retry: number }[]>`
     INSERT INTO "RateLimit" ("key", "count", "resetAt")
-    VALUES (${key}, 1, NOW() + make_interval(secs => ${windowSeconds}))
+    VALUES (${storedKey(key)}, 1, NOW() + make_interval(secs => ${windowSeconds}))
     ON CONFLICT ("key") DO UPDATE SET
       "count" = CASE WHEN "RateLimit"."resetAt" <= NOW() THEN 1 ELSE "RateLimit"."count" + 1 END,
       "resetAt" = CASE WHEN "RateLimit"."resetAt" <= NOW()
@@ -50,7 +63,7 @@ export async function enforceRateLimits(
 
 /** Clears a counter, e.g. failed-login attempts after a successful login. */
 export async function resetRateLimit(key: string): Promise<void> {
-  await prisma.rateLimit.deleteMany({ where: { key } })
+  await prisma.rateLimit.deleteMany({ where: { key: storedKey(key) } })
 }
 
 const MINUTE = 60
