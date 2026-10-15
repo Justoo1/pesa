@@ -33,6 +33,9 @@ jobs:
       AUTH_URL: http://localhost:3000
       MOBILE_JWT_SECRET: ci-mobile-jwt-secret-0123456789abcdef0123456789
       CRON_SECRET: ci-cron-secret-0123456789
+      # Production refuses to boot without a sender; CI never sends email
+      # (no AUTH_RESEND_KEY), it only needs the setting present.
+      AUTH_EMAIL_FROM: "Pesa <ci@example.com>"
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
