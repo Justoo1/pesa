@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/env.dart';
 import 'core/push/push_service.dart';
 import 'features/splash/animated_splash.dart';
+import 'features/welcome/welcome_seen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Every screen is laid out for portrait phones (iOS is iPhone-only too).
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  WelcomeSeen.initial =
+      (await SharedPreferences.getInstance()).getBool(WelcomeSeen.prefsKey) ?? false;
   // Phone push is optional: stays off until Firebase config is added.
   await PushService.init();
   // Every font is bundled (assets/google_fonts, SIL OFL), so the app never

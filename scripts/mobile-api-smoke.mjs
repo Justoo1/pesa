@@ -155,6 +155,25 @@ const statuses = data.milestones
 check("milestones completed → in_progress", statuses.join() === "completed,in_progress", statuses)
 
 // --- settings + income ---
+// --- export + onboarding ---
+{
+  const res = await fetch(`${BASE}/api/mobile/export/transactions`, {
+    headers: { authorization: `Bearer ${token}` },
+  })
+  const csv = await res.text()
+  check(
+    "export this month as CSV",
+    res.status === 200 &&
+      (res.headers.get("content-type") ?? "").startsWith("text/csv") &&
+      csv.startsWith("date,bucket,amount,note,method") &&
+      csv.includes("Smoke pot"),
+    { status: res.status, head: csv.slice(0, 80) },
+  )
+}
+check("new account not yet onboarded", (await boot()).onboardedAt === null)
+await ok("mark onboarded", "POST", "/settings/onboarded", { token })
+check("onboardedAt recorded", (await boot()).onboardedAt !== null)
+
 await ok("update profile", "PATCH", "/settings/profile", { token, body: { displayName: "Smoky" } })
 await ok("add income source", "POST", "/income-sources", {
   token,

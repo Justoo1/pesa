@@ -12,9 +12,12 @@ import '../features/pots/pot_detail_screen.dart';
 import '../features/pots/pots_manager_screen.dart';
 import '../features/projects/project_road_screen.dart';
 import '../features/settings/app_lock.dart';
+import '../features/share/share_spend_screen.dart';
 import '../features/settings/income_sources_screen.dart';
+import '../features/welcome/welcome_screen.dart';
+import '../features/welcome/welcome_seen.dart';
 
-const _authRoutes = {'/login', '/register', '/login/email-code'};
+const _authRoutes = {'/welcome', '/login', '/register', '/login/email-code'};
 
 /// Bridges Riverpod's [authControllerProvider] to go_router's
 /// [GoRouter.refreshListenable], so a settled auth-status change (not every
@@ -43,7 +46,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     if (authState.isLoading) return null;
     final isAuthenticated = authState.value is AuthAuthenticated;
     final isAuthRoute = _authRoutes.contains(state.matchedLocation);
-    if (!isAuthenticated && !isAuthRoute) return '/login';
+    if (!isAuthenticated) {
+      // First launch: the welcome story, before anything else.
+      if (!ref.read(welcomeSeenProvider) && state.matchedLocation != '/welcome') {
+        return '/welcome';
+      }
+      if (!isAuthRoute) return '/login';
+      return null;
+    }
     if (isAuthenticated && isAuthRoute) return '/';
     return null;
   }
@@ -71,11 +81,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings/income-sources',
         builder: (context, state) => const IncomeSourcesScreen(),
       ),
+      GoRoute(
+        path: '/share',
+        builder: (context, state) => ShareSpendScreen(sharedText: state.extra as String? ?? ''),
+      ),
       GoRoute(path: '/months', builder: (context, state) => const MonthsScreen()),
       GoRoute(
         path: '/months/:ym',
         builder: (context, state) => MonthDetailScreen(ym: state.pathParameters['ym']!),
       ),
+      GoRoute(path: '/welcome', builder: (context, state) => const WelcomeScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/login/email-code', builder: (context, state) => const EmailCodeScreen()),

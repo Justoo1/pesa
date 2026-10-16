@@ -113,7 +113,8 @@ void main() {
     // --- Help from More ---
     await tester.tap(nav('MORE'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Help & tutorials'), 200);
+    // Scroll it well clear of the bottom nav, which overlaps the list's end.
+    await tester.scrollUntilVisible(find.text('About Pesa'), 200);
     await tester.tap(find.text('Help & tutorials'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Carry-over'));

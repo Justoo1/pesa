@@ -36,11 +36,14 @@ export function LegalPage({
         </nav>
       </header>
       <h1 className="serif">{title}</h1>
-      {showEffectiveDate && <p className="tiny">Effective {POLICY_EFFECTIVE_DATE}</p>}
+      {showEffectiveDate && (
+        <p className="tiny">Effective {POLICY_EFFECTIVE_DATE}</p>
+      )}
       {intro && <div className="legal-intro">{intro}</div>}
       {children}
       <footer className="tiny legal-foot">
-        Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+        Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+        .
       </footer>
     </main>
   )

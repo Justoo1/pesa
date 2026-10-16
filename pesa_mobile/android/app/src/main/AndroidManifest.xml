@@ -32,6 +32,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- "Share to Pesa": text from another app becomes a spend
+                 (MainActivity.kt → lib/features/share/). -->
+            <intent-filter android:label="Log spend in Pesa">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
         <!-- Push (FCM): notifications that arrive while the app is in the
              background use Pesa's channel (created in push_service.dart),

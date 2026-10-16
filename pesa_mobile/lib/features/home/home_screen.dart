@@ -21,7 +21,8 @@ import '../bank/bank_screen.dart';
 import '../help/help_and_tour.dart';
 import '../insights/insights_screen.dart';
 import '../pots/disburse_flow.dart';
-import '../pots/pot_actions_provider.dart';
+import '../pots/payday_review_sheet.dart';
+import '../share/share_intake.dart';
 import '../pots/pot_editor_sheet.dart';
 import '../projects/projects_screen.dart';
 import '../settings/settings_screen.dart';
@@ -44,7 +45,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with FirstRunTour {
   void initState() {
     super.initState();
     // Signed in: keep this phone's push token registered (no-op without Firebase).
-    PushService.syncIfPermitted(ref.read(apiClientProvider));
+    PushService.syncIfPermitted(
+      ref.read(apiClientProvider),
+    ); // Text shared in before sign-in (or before this screen existed).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openShared());
+  }
+
+  /// "Share → Log spend in Pesa": Home only exists once signed in and unlocked, so
+  /// this is the right moment to turn shared text into a spend.
+  void _openShared() {
+    if (!mounted) return;
+    final text = ref.read(sharedTextProvider.notifier).take();
+    if (text != null) context.push('/share', extra: text);
   }
 
   void _goTo(int index) => setState(() => _tabIndex = index);
@@ -56,6 +68,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with FirstRunTour {
       if (step != null) _goTo(tourSteps[step].tab);
     });
     if (ref.watch(bootstrapProvider).hasValue) maybeStartTour();
+    ref.listen<String?>(sharedTextProvider, (_, text) {
+      if (text != null) _openShared();
+    });
 
     return Scaffold(
       // Every tab renders its own web-style header; no AppBar.
@@ -175,7 +190,12 @@ class _HomeTab extends ConsumerWidget {
                   paydayTemplateSize: data.paydayTemplate.length,
                   onSendToPot: () => showDisburseFlow(context),
                   onOpenWrap: onOpenWrap,
-                  onReplayLastMonth: () => _replayLastMonth(context, ref, data.paydayTemplate),
+                  onReplayLastMonth: () => _replayLastMonth(
+                    context,
+                    data.paydayTemplate,
+                    currency,
+                    (salary - disbursed).clamp(0, salary),
+                  ),
                 ),
               ),
             ),
@@ -290,22 +310,21 @@ class _HomeTab extends ConsumerWidget {
 
   Future<void> _replayLastMonth(
     BuildContext context,
-    WidgetRef ref,
     List<PaydayDraft> paydayTemplate,
+    String currency,
+    int remainingToDisburse,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     if (paydayTemplate.isEmpty) {
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nothing to replay yet — last month had no disbursements.')),
       );
       return;
     }
-    try {
-      await ref.read(potRepositoryProvider).applyPaydayTemplate(paydayTemplate);
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
-      return;
-    }
-    ref.invalidate(bootstrapProvider);
+    await showPaydayReviewSheet(
+      context,
+      template: paydayTemplate,
+      currency: currency,
+      remainingToDisburse: remainingToDisburse,
+    );
   }
 }

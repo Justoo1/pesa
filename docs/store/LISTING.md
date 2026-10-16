@@ -25,6 +25,9 @@ RECORD AS YOU GO
 • Log spending from a pot, or move money between pots
 • Keep track of your bank and mobile-money balances by hand
 • Add transactions for past months to complete your history
+• Share a MoMo SMS or receipt to Pesa to log the spend in seconds (Android)
+• Replay last month's payday split in one tap — tweak any amount first
+• Export this month's transactions to a spreadsheet (CSV)
 
 STAY ON TRACK
 • Pace alerts warn you when a pot is on track to run over

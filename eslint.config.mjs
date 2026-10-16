@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Flutter build output and the local dev database.
+    "pesa_mobile/build/**",
+    ".devdb/**",
   ]),
 ]);
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router.dart';
 import 'core/theme/pesa_theme.dart';
 import 'features/auth/auth_provider.dart';
+import 'features/share/share_intake.dart';
 
 class PesaApp extends ConsumerWidget {
   const PesaApp({super.key});
@@ -28,6 +29,7 @@ class PesaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: _theme,
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) => ShareIntakeListener(child: child!),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/widgets/async_data_view.dart';
 import '../../core/format.dart';
@@ -17,6 +18,7 @@ import '../../core/widgets/screen_header.dart';
 import '../auth/auth_provider.dart';
 import '../home/bootstrap_provider.dart';
 import '../help/help_and_tour.dart';
+import 'about_sheet.dart';
 import 'app_lock.dart';
 import 'settings_repository.dart';
 
@@ -131,6 +133,12 @@ class _SettingsBody extends ConsumerWidget {
               onTap: () => context.push('/months'),
             ),
             _Row(
+              icon: LucideIcons.download,
+              label: 'Export this month',
+              value: 'CSV',
+              onTap: () => _exportMonth(context, ref),
+            ),
+            _Row(
               icon: LucideIcons.circleHelp,
               label: 'Help & tutorials',
               onTap: () => Navigator.of(context).push(
@@ -148,6 +156,11 @@ class _SettingsBody extends ConsumerWidget {
         ),
         _Group(
           children: [
+            _Row(
+              icon: LucideIcons.info,
+              label: 'About Pesa',
+              onTap: () => showAboutPesaSheet(context),
+            ),
             _Row(
               icon: LucideIcons.shieldCheck,
               label: 'Privacy policy',
@@ -220,6 +233,26 @@ class _SettingsBody extends ConsumerWidget {
       ref.invalidate(bootstrapProvider);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  /// Downloads this month's CSV and hands it to the share sheet (save to
+  /// Files/Drive, email it, open in Sheets…).
+  Future<void> _exportMonth(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final box = context.findRenderObject() as RenderBox?;
+    try {
+      final (name, bytes) = await ref.read(settingsRepositoryProvider).exportMonthCsv();
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile.fromData(bytes, mimeType: 'text/csv', name: name)],
+          fileNameOverrides: [name],
+          subject: 'Pesa — $name',
+          sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 

@@ -16,9 +16,9 @@ export default function SupportPage() {
       intro={
         <p>
           Stuck, found a bug, or have an idea? Email{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we&rsquo;ll get back to you,
-          usually within two working days. Telling us your phone model and app version (More →
-          About) helps.
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and
+          we&rsquo;ll get back to you, usually within two working days. Telling
+          us your phone model and app version (More → About) helps.
         </p>
       }
     >
@@ -26,33 +26,34 @@ export default function SupportPage() {
 
       <h3>Does Pesa move my money?</h3>
       <p>
-        No. Pesa is a planner. When you &ldquo;send&rdquo; money to a pot you&rsquo;re recording
-        where that part of your salary is meant to go. Pesa never connects to your bank or
-        mobile-money account.
+        No. Pesa is a planner. When you &ldquo;send&rdquo; money to a pot
+        you&rsquo;re recording where that part of your salary is meant to go.
+        Pesa never connects to your bank or mobile-money account.
       </p>
 
       <h3>I didn&rsquo;t get my sign-in code or link</h3>
       <p>
-        Check your spam or promotions folder, and wait a minute before asking for another one. The
-        newest code is the only one that works, and codes expire after a few minutes.
+        Check your spam or promotions folder, and wait a minute before asking
+        for another one. The newest code is the only one that works, and codes
+        expire after a few minutes.
       </p>
 
       <h3>I forgot my password</h3>
       <p>
-        On the sign-in screen, choose to sign in with an email code instead, or use{" "}
-        <Link href="/forgot-password">Forgot password</Link> on the website.
+        On the sign-in screen, choose to sign in with an email code instead, or
+        use <Link href="/forgot-password">Forgot password</Link> on the website.
       </p>
 
       <h3>I forgot my app-lock PIN</h3>
       <p>
-        After too many wrong tries Pesa signs you out. Sign back in with your email and set a new
-        PIN under More → App lock.
+        After too many wrong tries Pesa signs you out. Sign back in with your
+        email and set a new PIN under More → App lock.
       </p>
 
       <h3>Why can&rsquo;t I send more to a pot?</h3>
       <p>
-        A pot can&rsquo;t be filled past its target. Raise the target (open the pot, then Adjust
-        target), or send the rest to another pot.
+        A pot can&rsquo;t be filled past its target. Raise the target (open the
+        pot, then Adjust target), or send the rest to another pot.
       </p>
 
       <h3>How do I delete my account?</h3>

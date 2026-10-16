@@ -71,11 +71,24 @@ final tourProvider = NotifierProvider<TourController, int?>(TourController.new);
 /// returns on its own — Help can replay it.
 mixin FirstRunTour<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   bool _autoStarted = false;
+  bool _markedOnboarded = false;
 
   void maybeStartTour() {
     if (_autoStarted) return;
-    final profile = ref.read(bootstrapProvider).value?.profile;
-    if (profile == null || profile.tourCompleted) return;
+    final data = ref.read(bootstrapProvider).value;
+    final profile = data?.profile;
+    if (profile == null) return;
+    // Seen the phone's welcome (or signed in here): the web app shouldn't
+    // greet this account with its own welcome slides.
+    if (data!.onboardedAt == null && !_markedOnboarded) {
+      _markedOnboarded = true;
+      ref
+          .read(apiClientProvider)
+          .dio
+          .post<void>('/api/mobile/settings/onboarded')
+          .ignore(); // best effort
+    }
+    if (profile.tourCompleted) return;
     _autoStarted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.read(tourProvider.notifier).start();

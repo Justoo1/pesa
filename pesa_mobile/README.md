@@ -40,6 +40,22 @@ The integration tests register throwaway users against the live dev database.
 `/api/mobile/dev/last-code` endpoint, which returns 404 in production. That
 lets it run on an emulator too.
 
+The welcome story only shows on a device's first launch (`WelcomeSeen`), so
+tests that pump `PesaApp` directly skip it. `welcome_test.dart` turns it back
+on. To capture its slides as PNGs:
+
+```sh
+flutter drive -d emulator-5554 --driver=test_driver/welcome_shots_driver.dart \
+  --target=integration_test/welcome_test.dart \
+  --dart-define=API_BASE_URL=http://10.0.2.2:3000 --dart-define=WELCOME_SHOTS=true
+```
+
+Store screenshots come from `integration_test/store_screenshots_test.dart`; see
+[docs/store/PLAY_STORE.md](../docs/store/PLAY_STORE.md).
+
+To try "Share → Log spend in Pesa" by hand on a running app:
+`adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "'GH₵ 25 taxi'" -n com.edtmsys.pesa/.MainActivity`
+
 For local test runs, put `RATE_LIMITS_DISABLED=1` in `.env`, because the tests
 register many accounts from one IP. This switch is ignored in production.
 

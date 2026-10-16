@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -120,6 +122,21 @@ class SettingsRepository {
 
   Future<void> deleteIncomeSource(String id) =>
       _send(() => _apiClient.dio.delete<void>('/api/mobile/income-sources/$id'));
+
+  /// This month's transactions as CSV: (file name, bytes) for the share sheet.
+  Future<(String, Uint8List)> exportMonthCsv() async {
+    try {
+      final res = await _apiClient.dio.get<List<int>>(
+        '/api/mobile/export/transactions',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final disposition = res.headers.value('content-disposition') ?? '';
+      final name = RegExp(r'filename="([^"]+)"').firstMatch(disposition)?.group(1) ?? 'pesa.csv';
+      return (name, Uint8List.fromList(res.data ?? const []));
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 
   Future<void> _send(Future<Response<void>> Function() request) async {
     try {
