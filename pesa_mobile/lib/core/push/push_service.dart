@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart' show Color;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../api_client.dart';
 
@@ -18,8 +19,17 @@ class PushService {
 
   static bool available = false;
 
-  /// Shows foreground notifications as a snackbar (wired in app.dart).
-  static final messengerKey = GlobalKey<ScaffoldMessengerState>();
+  /// Pesa's Android notification channel. Background pushes land here via
+  /// the manifest's default_notification_channel_id; high importance makes
+  /// them pop up as heads-up notifications.
+  static const _channel = AndroidNotificationChannel(
+    'pesa_alerts',
+    'Pesa alerts',
+    description: 'Payday, bills due, pots filling up and your monthly wrap.',
+    importance: Importance.high,
+  );
+
+  static final _local = FlutterLocalNotificationsPlugin();
 
   static StreamSubscription<String>? _tokenRefresh;
 
@@ -32,13 +42,49 @@ class PushService {
       debugPrint('[push] Firebase not configured — phone push disabled ($e)');
       return;
     }
-    FirebaseMessaging.onMessage.listen((message) {
-      final n = message.notification;
-      if (n == null) return;
-      messengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text([n.title, n.body].whereType<String>().join(' — '))),
+    // A push that arrives while Pesa is open (e.g. "Rent is full" right
+    // after a top-up) must still show as a real notification: Android hides
+    // FCM notifications in the foreground, so post it ourselves; iOS can be
+    // told to present it.
+    if (Platform.isAndroid) {
+      await _local.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('ic_stat_pesa'),
+        ),
       );
-    });
+      await _local
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
+      FirebaseMessaging.onMessage.listen(_showForeground);
+    } else {
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+  }
+
+  static Future<void> _showForeground(RemoteMessage message) async {
+    final n = message.notification;
+    if (n == null) return;
+    await _local.show(
+      // Same tag (e.g. one pot) → replace rather than stack.
+      id: (message.data['tag'] as String? ?? message.messageId ?? '').hashCode,
+      title: n.title,
+      body: n.body,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: 'ic_stat_pesa',
+          color: const Color(0xFFC9714B),
+        ),
+      ),
+    );
   }
 
   static String get _platform => Platform.isIOS ? 'ios' : 'android';

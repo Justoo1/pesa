@@ -2,12 +2,14 @@
 // Renders the mobile app's branding PNGs from the web logo (same paths as
 // app/icon.svg / app/apple-icon.tsx) into pesa_mobile/assets/branding/:
 //
-//   node scripts/gen-mobile-branding.mjs
+//   node scripts/gen-mobile-branding.mjs   (also writes the Android
+//                                          status-bar icon res/drawable-*/ic_stat_pesa.png)
 //   cd pesa_mobile && dart run flutter_launcher_icons && dart run flutter_native_splash:create
 //
 // The native splash deliberately shows an EMPTY pot: the Flutter animated
 // splash (lib/features/splash/animated_splash.dart) starts from that exact
 // frame and fills it, so the hand-off is seamless.
+import { mkdir } from "fs/promises"
 import path from "path"
 import { fileURLToPath } from "url"
 import sharp from "sharp"
@@ -46,8 +48,26 @@ const jobs = [
   ["splash.png", potSvg(1152, 640, emptyPot)],
 ]
 
+// Android status-bar icon: Android only uses the alpha channel (tinted
+// white), so it's a flat silhouette — pot + rim, with a gap above the
+// "savings" level so it still reads as a filling pot at 24dp.
+const res = path.join(out, "..", "..", "android", "app", "src", "main", "res")
+const silhouette = `<defs><mask id="m"><rect width="32" height="32" fill="#fff"/>
+  <rect x="8" y="15.2" width="16" height="1.3" fill="#000"/></mask></defs>
+  <g mask="url(#m)" fill="#FFFFFF">
+  <path d="M6.5 12c0-2.2 1.8-4 4-4h11c2.2 0 4 1.8 4 4v10.5c0 2.5-2 4.5-4.5 4.5h-10c-2.5 0-4.5-2-4.5-4.5z"/>
+  <rect x="5.5" y="7" width="21" height="3.5" rx="1.75"/></g>`
+const statusIcon = (px) => `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="2 3 28 28">${silhouette}</svg>`
+for (const [dpi, px] of [["mdpi", 24], ["hdpi", 36], ["xhdpi", 48], ["xxhdpi", 72], ["xxxhdpi", 96]]) {
+  jobs.push([path.join(res, `drawable-${dpi}`, "ic_stat_pesa.png"), statusIcon(px)])
+}
+
 Promise.all(
-  jobs.map(([name, svg]) => sharp(Buffer.from(svg)).png().toFile(path.join(out, name))),
+  jobs.map(async ([name, svg]) => {
+    const file = path.isAbsolute(name) ? name : path.join(out, name)
+    await mkdir(path.dirname(file), { recursive: true })
+    return sharp(Buffer.from(svg)).png().toFile(file)
+  }),
 ).then((results) =>
-  results.forEach((r, i) => console.log(`${jobs[i][0]} ${r.width}x${r.height}`)),
+  results.forEach((r, i) => console.log(`${path.basename(path.dirname(jobs[i][0]))}/${path.basename(jobs[i][0])} ${r.width}x${r.height}`)),
 )

@@ -84,7 +84,7 @@ When the variable is missing or invalid, the server logs `[fcm] FCM_SERVICE_ACCO
 1. Rebuild the app: `cd pesa_mobile && flutter run`. A full rebuild is needed after adding config files; hot reload won't pick them up.
 2. Sign in, go to **More → Push notifications**, and turn on any notification. Allow the permission prompt.
 3. **Check registration.** The debug console prints `[push] FCM token: …`, and the server stores the token in `MobileDeviceToken`. To see it locally, run `npx prisma studio`.
-4. **Check delivery from Firebase.** Firebase console → **Messaging** → **Create your first campaign** → **Firebase Notification messages** → enter a title and text → **Send test message** → paste the token → **Test**. Put the app in the background first: while it's in the foreground, Pesa shows the message as an in-app banner instead.
+4. **Check delivery from Firebase.** Firebase console → **Messaging** → **Create your first campaign** → **Firebase Notification messages** → enter a title and text → **Send test message** → paste the token → **Test**. It shows as a normal notification whether Pesa is open or in the background.
 5. **Check delivery from the server.** The real notifications come from the cron routes in `vercel.json`. Run one by hand:
 
    ```bash
